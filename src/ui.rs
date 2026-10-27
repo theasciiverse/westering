@@ -238,8 +238,16 @@ pub fn wrap(text: &str, width: usize) -> Vec<String> {
     out
 }
 
+/// The road as two lines: the wagon above, the landmarks on the road below.
+fn map(game: &Game, width: usize) -> Vec<Line<'static>> {
+    let (marks, total) = game.map_marks();
+    let (wagon, road) = crate::art::map_line(width, game.journey.miles, total, &marks);
+    vec![Line::from(amber(wagon)), Line::from(road).style(Style::new().fg(DARK))]
+}
+
 fn trail(f: &mut Frame, page: Rect, game: &Game) {
     let mut body = status(game);
+    body.extend(map(game, page.width as usize));
     body.push(Line::default());
     let menu: Vec<Line> = TRAIL_MENU
         .iter()
@@ -259,11 +267,19 @@ fn landmark(f: &mut Frame, page: Rect, game: &Game) {
     body.push(Line::default());
     body.push(Line::from(bold(l.name)));
     body.push(Line::default());
-    for w in wrap(l.note, page.width as usize) {
-        body.push(Line::from(w));
+    let note: Vec<Line> = wrap(l.note, page.width as usize).into_iter().map(Line::from).collect();
+    let choices = game.landmark_choices();
+    // the scene only where it leaves room for the note and the choices
+    if let Some(scene) = crate::art::scene(l) {
+        let room = (page.height as usize).saturating_sub(3 + 4 + body.len() + note.len() + 1 + choices.len());
+        if scene.len() < room {
+            body.extend(scene.iter().map(|s| Line::from(amber(*s))));
+            body.push(Line::default());
+        }
     }
+    body.extend(note);
     body.push(Line::default());
-    for (i, c) in game.landmark_choices().iter().enumerate() {
+    for (i, c) in choices.iter().enumerate() {
         body.push(Line::from(vec![pointer(i == game.cursor), bold(c.clone())]));
     }
     page_with(f, page, l.name, body, &game.note, keys(&[("Up Down", "choose"), ("Enter", "do it")]));

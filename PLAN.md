@@ -70,7 +70,7 @@ Rules for the night:
   (MIT, David Sandquist), CLAUDE.md status updated, .github/workflows/
   release.yml (adapted from terminal-pong, no nfpm packages unless trivial),
   hub manifest draft in this folder (not in hub, David reviews it first).
-- [ ] 11. If time is left: half-block landmark vignettes (Chimney Rock,
+- [x] 11. If time is left: half-block landmark vignettes (Chimney Rock,
   Independence Rock, the Blue Mountains), a wagon rolling across the
   travel screen, a map screen of the trail so far.
 
@@ -90,3 +90,4 @@ Rules for the night:
   - Changes: illness severity varies per case (mild to grave); good food no longer heals the sick; events 11 to 15 percent of travelling days; a wagon accident event; grueling pace costs 2 a day, not 3; with fewer than 2 oxen the party leaves the wagon and walks on at 7 miles a day with what it can carry (before, the game could get stuck there).
   - A test pins it: 110 to 150 of 200 sensible parties arrive whole, at most 20 of 200 careless ones arrive.
 - M10 done: README.md, LICENSE (MIT, 2026 David Sandquist), release workflow for six targets adapted from terminal-pong without the system packages (YAML checked, not run: there is no GitHub repo), draft manifest and page in `asciiverse/` (72x24 minimum, checked headless), CLAUDE.md status and code map; the Westering lines in games/CLAUDE.md and ROSTER.md updated.
+- M11 done, in plain characters rather than half blocks, to match the teletype pages: scenes at Chimney Rock, Scotts Bluff, Independence Rock, South Pass, Laurel Hill and Oregon City, and a generic river and fort (shown only when the page has room); a map strip on the trail page (the wagon over the road, landmarks passed and ahead). The rolling wagon was left out: the game is turn by turn and nothing moves between keys. Also: one-day stretches read "May 23: 1 mile". The release build was started in a real pseudo-terminal: title and party screens drawn, keys taken.

@@ -13,6 +13,7 @@
 //! sensible and a careless rule player and prints how they fared;
 //! `--bot-show SEED [--careless]` prints the last screen of one.
 
+mod art;
 mod bot;
 mod date;
 mod events;

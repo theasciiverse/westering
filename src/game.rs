@@ -94,6 +94,8 @@ pub struct Game {
     pub hunted: u32,
     /// the wagon has been left behind
     pub on_foot: bool,
+    /// miles from Independence of each landmark reached
+    pub passed: Vec<f64>,
 }
 
 impl Game {
@@ -129,6 +131,7 @@ impl Game {
             epitaph_text: String::new(),
             hunted: 0,
             on_foot: false,
+            passed: Vec::new(),
         }
     }
 
@@ -448,7 +451,9 @@ impl Game {
                 break;
             }
         }
-        let mut line = format!("{} to {}: {:.0} miles, {}.", date::short(from), date::short(self.day - 1), miles, self.journey.weather.describe());
+        let when = if self.day - 1 > from { format!("{} to {}", date::short(from), date::short(self.day - 1)) } else { date::short(from) };
+        let miles = miles.round() as u32;
+        let mut line = format!("{when}: {miles} {}, {}.", if miles == 1 { "mile" } else { "miles" }, self.journey.weather.describe());
         if hungry {
             line.push_str(" Not enough to eat.");
         }
@@ -479,6 +484,7 @@ impl Game {
 
     fn arrive(&mut self) {
         self.at = self.to;
+        self.passed.push(self.journey.miles);
         let l = &ROUTE[self.at];
         info!("reached {} on {}, {:.0} miles", l.name, date::format(self.day), self.journey.miles);
         self.diary.push(format!("{}: Reached {}.", date::format(self.day), l.name));
@@ -717,6 +723,29 @@ impl Game {
             Key::Up | Key::Down => self.cursor = 1 - self.cursor.min(1),
             _ => {}
         }
+    }
+
+    /// The landmarks for the map, at their miles from Independence and
+    /// whether they are behind the wagon, and the road's whole length. The
+    /// road ahead follows the first choice at each fork.
+    pub fn map_marks(&self) -> (Vec<(f64, bool)>, f64) {
+        let mut marks: Vec<(f64, bool)> = self.passed.iter().map(|&m| (m, true)).collect();
+        let mut miles = self.journey.miles + self.left.max(0.0);
+        let mut i = self.to;
+        if self.left > 0.0 || i != self.at {
+            marks.push((miles, false));
+        }
+        loop {
+            let (next, m) = match ROUTE[i].next {
+                Next::On(n, m) => (n, m),
+                Next::Fork(roads) => (roads[0].1, roads[0].2),
+                Next::Done => break,
+            };
+            miles += m;
+            marks.push((miles, false));
+            i = next;
+        }
+        (marks, miles)
     }
 
     pub fn next_landmark(&self) -> &'static str {
