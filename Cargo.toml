@@ -1,0 +1,18 @@
+[package]
+name = "westering"
+version = "0.1.0"
+edition = "2024"
+description = "Asciiverse wagon journey west along the 1848 Oregon Trail, Rust + Ratatui"
+license = "MIT"
+
+[[bin]]
+name = "westering"
+path = "src/main.rs"
+
+[dependencies]
+ratatui = "0.30"
+log = "0.4"
+env_logger = "0.11"
+
+[profile.release]
+debug = 1
