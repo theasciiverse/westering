@@ -131,13 +131,23 @@ pub struct Person {
     pub name: String,
     /// 0 is dead, 100 hale
     pub health: i32,
-    pub illness: Option<&'static str>,
+    pub illness: Option<Illness>,
+    /// what killed them, for the diary and the end
+    pub cause: Option<String>,
     pub epitaph: Option<String>,
+}
+
+/// A sickness or an injury: health lost each day until it runs its course.
+#[derive(Clone, Debug)]
+pub struct Illness {
+    pub name: &'static str,
+    pub drain: i32,
+    pub days: u32,
 }
 
 impl Person {
     pub fn new(name: &str) -> Person {
-        Person { name: name.into(), health: 100, illness: None, epitaph: None }
+        Person { name: name.into(), health: 100, illness: None, cause: None, epitaph: None }
     }
 
     pub fn alive(&self) -> bool {

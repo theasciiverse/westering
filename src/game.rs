@@ -3,6 +3,7 @@
 //! the end.
 
 use crate::date;
+use crate::events;
 use crate::party::{self, ITEMS, Item, Person, Supplies};
 use crate::rng::Rng;
 use crate::route::{self, Kind, Next, ROUTE};
@@ -77,6 +78,8 @@ pub struct Game {
     pub prices: f64,
     /// bought at this store, so it can be put back
     pub bought_here: Supplies,
+    /// the day the party left Independence
+    pub started: u32,
 }
 
 impl Game {
@@ -107,6 +110,7 @@ impl Game {
             diary: Vec::new(),
             prices: 1.0,
             bought_here: Supplies::default(),
+            started: 0,
         }
     }
 
@@ -239,6 +243,7 @@ impl Game {
             return;
         }
         info!("leaving Independence on {} with {:?}, {} left", date::format(self.day), self.supplies, party::money(self.money));
+        self.started = self.day;
         self.diary.push(format!("{}: Left Independence with {} oxen and {} lb of provisions.", date::format(self.day), self.supplies.get(Item::Oxen), self.supplies.get(Item::Food)));
         self.set_out(route::START);
     }
@@ -282,8 +287,15 @@ impl Game {
             0 => self.travel(),
             1 => {
                 let from = self.day;
-                self.live_day(true);
+                let d = self.live_day(true);
                 self.diary.push(format!("{}: Rested a day.", date::format(from)));
+                for (name, what) in d.recovered {
+                    self.diary.push(format!("{name} is well again after {what}."));
+                }
+                for name in &d.died {
+                    let o = self.obituary(name);
+                    self.diary.push(o);
+                }
                 self.after_days();
             }
             2 => {
@@ -305,7 +317,16 @@ impl Game {
         for name in &d.died {
             info!("{name} died on {}", date::format(self.day));
         }
+        for (name, what) in &d.recovered {
+            info!("{name} got over {what}");
+        }
         d
+    }
+
+    /// "Ada has died of cholera."
+    fn obituary(&self, name: &str) -> String {
+        let cause = self.party.iter().find(|p| p.name == name).and_then(|p| p.cause.clone()).unwrap_or_else(|| "exhaustion".into());
+        format!("{name} has died of {cause}.")
     }
 
     /// Travel on for up to a week, stopping at the next landmark or when
@@ -318,14 +339,18 @@ impl Game {
         let from = self.day;
         let (mut miles, mut hungry, mut cold, mut died) = (0.0, false, false, Vec::new());
         let mut arrived = false;
+        let mut happened = Vec::new();
         for _ in 0..7 {
             let d = self.live_day(false);
             miles += d.miles;
             self.left -= d.miles;
             hungry |= d.hungry;
             cold |= d.cold;
-            let stop = !d.died.is_empty();
+            let mut stop = !d.died.is_empty();
             died.extend(d.died);
+            for (name, what) in d.recovered {
+                happened.push(format!("{}: {name} is well again after {what}.", date::format(self.day - 1)));
+            }
             if self.left <= 0.0 {
                 // the last day's overshoot is the landmark's own ground
                 miles += self.left;
@@ -334,21 +359,34 @@ impl Game {
                 arrived = true;
                 break;
             }
+            if self.alive() > 0
+                && let Some(h) = events::roll(&mut self.rng, &mut self.journey, self.day - 1, &mut self.party, &mut self.supplies, self.started)
+            {
+                info!("event: {}", h.text);
+                happened.push(format!("{}: {}", date::format(self.day - 1), h.text));
+                for _ in 0..h.days_lost {
+                    let d = self.live_day(true);
+                    died.extend(d.died);
+                }
+                stop |= h.stop || h.days_lost > 0;
+            }
             if stop || self.alive() == 0 {
                 break;
             }
         }
-        let mut line = format!("{}: {:.0} miles, {}.", date::format(from), miles, self.journey.weather.describe());
+        let mut line = format!("{} to {}: {:.0} miles, {}.", date::short(from), date::short(self.day - 1), miles, self.journey.weather.describe());
         if hungry {
             line.push_str(" Not enough to eat.");
         }
         if cold {
             line.push_str(" Cold without enough clothing.");
         }
-        for name in &died {
-            line.push_str(&format!(" {name} has died."));
-        }
         self.diary.push(line);
+        self.diary.extend(happened);
+        for name in &died {
+            let o = self.obituary(name);
+            self.diary.push(o);
+        }
         if arrived && self.alive() > 0 {
             self.arrive();
         } else {

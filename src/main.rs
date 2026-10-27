@@ -11,6 +11,7 @@
 //! Esc, `^` and `_` the up and down arrows; every other character is itself.
 
 mod date;
+mod events;
 mod game;
 mod party;
 mod rng;

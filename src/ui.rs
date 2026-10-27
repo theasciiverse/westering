@@ -173,7 +173,33 @@ fn status(game: &Game) -> Vec<Line<'static>> {
         row(format!("Health: {}", trail::health_word(&game.party)), format!("Pace: {}   Rations: {}", j.pace.name(), j.rations.name())),
         row(format!("Provisions: {} lb", game.supplies.get(Item::Food)), format!("Oxen: {}, {}", game.supplies.get(Item::Oxen), trail::oxen_word(j.oxen_health))),
         row(format!("Next: {}, {:.0} mi", game.next_landmark(), game.left.max(0.0)), format!("Travelled: {:.0} miles", j.miles)),
+        Line::from(people(game)),
     ]
+}
+
+/// Each person and how they are: "Ada good, Tom poor (measles)", the dead dimmed.
+fn people(game: &Game) -> Vec<Span<'static>> {
+    let mut spans = Vec::new();
+    for (i, p) in game.party.iter().enumerate() {
+        if i > 0 {
+            spans.push(Span::raw("  "));
+        }
+        if !p.alive() {
+            spans.push(dim(format!("{} (dead)", p.name)));
+            continue;
+        }
+        let color = match p.health {
+            h if h >= 60 => GREEN,
+            h if h >= 35 => AMBER,
+            _ => RED,
+        };
+        let mut text = format!("{} {}", p.name, trail::health_of(p));
+        if let Some(ill) = &p.illness {
+            text.push_str(&format!(" ({})", ill.name));
+        }
+        spans.push(Span::styled(text, Style::new().fg(color)));
+    }
+    spans
 }
 
 /// The newest diary lines that fit in `rows`, wrapped to the page.

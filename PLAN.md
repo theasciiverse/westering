@@ -47,7 +47,7 @@ Rules for the night:
   Dalles, then the Barlow Road or rafting the Columbia. A short
   historical note at each, in our own words. Forts have stores at
   rising prices.
-- [ ] 5. Events: illness (cholera, mountain fever, scurvy, measles,
+- [x] 5. Events: illness (cholera, mountain fever, scurvy, measles,
   a broken arm), wagon breakdowns (spares fix them), lost or strayed oxen,
   storms, hail, a found cache, a trade offer, a lost trail, bad water,
   grass scarce. Weighted by region and season, written in our own words.
@@ -79,3 +79,4 @@ Rules for the night:
 - M1 done: crate, title screen, `--script`/`--seed` headless mode, SplitMix64 RNG with a test.
 - M2 done: naming the party (random 1840s defaults), departure month March to July, the Independence store with purse ($800) and a 2,000 lb wagon. Flour and bacon became one item, Provisions, to keep the store short.
 - M3 and M4 done together (the trail needs the route): pace, rations, health, oxen, weather by month and region, travel a week at a time stopping at landmarks, rest, trade offers; 25 landmarks with both forks (Sublette Cutoff or Fort Bridger; Barlow Road or the Columbia), fort trade rooms at 1.4 to 2.2 times Independence prices. Mileages are rounded figures; checked against Wikipedia's Route of the Oregon Trail where it gives them (Fort Bridger to Fort Hall about 210, ours 230; Three Island Crossing to Fort Boise about 130, ours 125; Sublette Cutoff saves about 70, ours 70); totals 1,820 to 1,950 miles, matching "not quite 2,000" (historicoregoncity.org). Rivers are crossed without risk until M6. A bot that never restocks starves around mile 890 in mid-June: hunting and fort shopping are meant to fix that (M8, M9).
+- M5 done: 20 events weighted by region, month, pace and time on the road (illness with a daily drain and a course, breakdowns that use spares or cost days, strays, hail, poor grass, bad water, lost trail, abandoned wagons, good camps, help from Lakota, Shoshone and Nez Perce families, fire, theft, mud). About one travelling day in ten. Cholera is rare on purpose: the trail's cholera years began in 1849. Deaths carry a cause; the status shows each person's health and illness.

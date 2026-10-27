@@ -26,6 +26,12 @@ pub fn format(day: u32) -> String {
     format!("{} {}, 1848", MONTH_NAMES[(m - 1) as usize], d)
 }
 
+/// "April 3", without the year.
+pub fn short(day: u32) -> String {
+    let m = month(day);
+    format!("{} {}", MONTH_NAMES[(m - 1) as usize], day.saturating_sub(first_of(m)) + 1)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

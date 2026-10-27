@@ -233,6 +233,8 @@ pub struct Day {
     pub cold: bool,
     /// names of those who died today
     pub died: Vec<String>,
+    /// who got over what
+    pub recovered: Vec<(String, &'static str)>,
 }
 
 /// How much grass the oxen find, by month (January first).
@@ -284,12 +286,24 @@ pub fn day(rng: &mut Rng, j: &mut Journey, day: u32, party: &mut [Person], suppl
         if matches!(j.weather.sky, Sky::Downpour | Sky::Blizzard) && !resting {
             change -= 1;
         }
-        // the hale mend a little on their own; the frail slip
+        // the hale mend a little on their own
         if p.illness.is_none() && p.health > 70 {
             change += 1;
         }
+        let mut cause = if fed < 1.0 { "hunger" } else if cold >= 2.0 { "the cold" } else { "exhaustion" };
+        if let Some(ill) = &mut p.illness {
+            change -= if resting { ill.drain / 2 } else { ill.drain };
+            cause = ill.name;
+            ill.days = ill.days.saturating_sub(1);
+            if ill.days == 0 {
+                out.recovered.push((p.name.clone(), ill.name));
+                p.illness = None;
+            }
+        }
         p.health = (p.health + change).clamp(0, 100);
         if !p.alive() {
+            p.cause = Some(cause.into());
+            p.illness = None;
             out.died.push(p.name.clone());
         }
     }
