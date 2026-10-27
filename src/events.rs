@@ -8,7 +8,7 @@ use crate::rng::Rng;
 use crate::trail::{Journey, Pace, Rations, Region};
 
 /// The chance of something happening on any one day of travel.
-const DAILY: f64 = 0.11;
+const DAILY: f64 = 0.15;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Event {
@@ -18,6 +18,7 @@ enum Event {
     Typhoid,
     Scurvy,
     BrokenBone,
+    RunOver,
     Snakebite,
     Breakdown,
     OxStrays,
@@ -66,6 +67,7 @@ fn weights(j: &Journey, day: u32, supplies: &Supplies, started: u32) -> Vec<(Eve
         (Typhoid, 0.6 * hard),
         (Scurvy, if j.rations != Rations::Filling { 0.8 * long_out } else { 0.15 * long_out }),
         (BrokenBone, 0.7 * hard * rough),
+        (RunOver, 0.35 * hard),
         (Snakebite, if matches!(r, HighPlains | SnakeDesert) { 0.6 } else { 0.1 }),
         (Breakdown, 2.0 * hard * rough),
         (OxStrays, if supplies.get(Item::Oxen) > 0 { 0.9 } else { 0.0 }),
@@ -88,9 +90,12 @@ fn living(party: &[Person]) -> Vec<usize> {
     (0..party.len()).filter(|&i| party[i].alive()).collect()
 }
 
-fn fall_ill(p: &mut Person, name: &'static str, hit: i32, drain: i32, days: u32) {
+/// Fall ill or hurt: an initial blow, then a daily drain whose strength
+/// varies from case to case, mild to grave.
+fn fall_ill(rng: &mut Rng, p: &mut Person, name: &'static str, hit: i32, drain: i32, days: u32) {
+    let severity = 0.5 + rng.unit() * rng.unit() * 2.0;
     p.health = (p.health - hit).max(1);
-    p.illness = Some(Illness { name, drain, days });
+    p.illness = Some(Illness { name, drain: ((drain as f64 * severity).round() as i32).max(1), days });
 }
 
 /// Roll for the day. None when the day passes quietly.
@@ -106,39 +111,44 @@ pub fn roll(rng: &mut Rng, j: &mut Journey, day: u32, party: &mut [Person], supp
     let pick_well = |rng: &mut Rng| -> Option<usize> { if well.is_empty() { None } else { Some(*rng.pick(&well)) } };
     use Event::*;
     match event {
-        Cholera | MountainFever | Measles | Typhoid | Scurvy | BrokenBone | Snakebite => {
+        Cholera | MountainFever | Measles | Typhoid | Scurvy | BrokenBone | RunOver | Snakebite => {
             let i = pick_well(rng)?;
             let p = &mut party[i];
             let n = p.name.clone();
             h.stop = true;
             h.text = match event {
                 Cholera => {
-                    fall_ill(p, "cholera", 25, 14, 4);
+                    fall_ill(rng, p, "cholera", 25, 14, 4);
                     format!("{n} is doubled over with cramps and cannot keep water down. Cholera.")
                 }
                 MountainFever => {
-                    fall_ill(p, "mountain fever", 10, 5, 8);
+                    fall_ill(rng, p, "mountain fever", 10, 5, 8);
                     format!("{n} has a fever, aching joints and a headache that will not lift. Mountain fever, the old hands call it.")
                 }
                 Measles => {
-                    fall_ill(p, "measles", 10, 4, 7);
+                    fall_ill(rng, p, "measles", 10, 4, 7);
                     format!("{n} is covered in a red rash and burning up. Measles.")
                 }
                 Typhoid => {
-                    fall_ill(p, "typhoid fever", 10, 6, 10);
+                    fall_ill(rng, p, "typhoid fever", 10, 9, 10);
                     format!("{n} has a fever that climbs a little higher each day. Typhoid.")
                 }
                 Scurvy => {
-                    fall_ill(p, "scurvy", 5, 3, 15);
+                    fall_ill(rng, p, "scurvy", 5, 3, 15);
                     format!("{n}'s gums are swollen and bleeding, and old cuts have opened again. Scurvy, from too long without fresh food.")
                 }
                 BrokenBone => {
                     let what = *rng.pick(&["an arm", "a leg", "a collarbone"]);
-                    fall_ill(p, "a broken bone", 20, 2, 12);
+                    fall_ill(rng, p, "a broken bone", 20, 2, 12);
                     format!("{n} fell under the wagon and broke {what}. You splint it as best you can.")
                 }
+                RunOver => {
+                    let hit = rng.range(30, 75) as i32;
+                    fall_ill(rng, p, "injuries", hit, 4, 6);
+                    format!("{n} slipped from the wagon tongue and a wheel went over them. They are badly hurt.")
+                }
                 _ => {
-                    fall_ill(p, "a snakebite", 30, 3, 4);
+                    fall_ill(rng, p, "a snakebite", 30, 3, 4);
                     format!("A rattlesnake bit {n} on the ankle. The leg swells black and blue.")
                 }
             };
@@ -186,7 +196,7 @@ pub fn roll(rng: &mut Rng, j: &mut Journey, day: u32, party: &mut [Person], supp
             if let Some(i) = pick_well(rng)
                 && rng.chance(0.5)
             {
-                fall_ill(&mut party[i], "bad water", 8, 4, 4);
+                fall_ill(rng, &mut party[i], "bad water", 8, 4, 4);
                 h.text = format!("The only water is brackish and foul. {} drank it and is sick.", party[i].name);
                 h.stop = true;
             } else {

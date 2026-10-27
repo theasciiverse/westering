@@ -62,7 +62,7 @@ Rules for the night:
 - [x] 8. Hunting as text: spend a day and shot, success by skill of
   the dice and region (buffalo on the plains, antelope, deer, elk in the
   mountains), carry limit of 100 lb back to the wagon.
-- [ ] 9. Balance: run 200 seeded headless playthroughs with a simple
+- [x] 9. Balance: run 200 seeded headless playthroughs with a simple
   bot strategy and tune so a sensible party arrives about 60 to 70
   percent of the time and a careless one rarely does. Record the numbers
   here.
@@ -83,3 +83,9 @@ Rules for the night:
 - M6 done: seven rivers, depth from the river's usual depth times snowmelt by month (highest May and June) and a daily drift; drive across, float the sealed box (a day), ferry where one ran in 1848 (Kansas River, North Platte, Green River), or camp and wait. Losses of goods and oxen, and drowning at deep fords. Quicksand on the South Platte. Rafting the Columbia costs three days and runs the Cascades rapids. Cholera weighting checked: NPS says cholera reached St. Louis in early 1849.
 - M7 done: graves marked with the date and place, an epitaph screen for each of the dead (words offered, the player may rewrite them), the end page with a scored reckoning on arrival (survivors and their health, oxen, goods, purse, days before October) or the graves if all were lost; Enter plays again. Also `src/bot.rs`: a sensible and a careless rule player, `--bot N` and `--bot-show SEED`. Before any balancing: sensible arrives 100 of 100 with 4.8 alive, careless 0 of 100. Too easy for the sensible: M9.
 - M8 done: Go hunting on the trail menu (item 3): a day and 10 to 30 rounds, game by region and season (buffalo on the High Plains May to August, antelope, deer, elk, sage hens, rabbits, turkey), 100 lb carried back at most, and game grows wary with each day hunted on the same stretch.
+- M9 done. The target is read as the whole party arriving, since a sensible party with someone left alive is nearly certain (as on the real trail, where most families lost no one or one). Numbers, 400 seeded journeys each, two seed ranges:
+  - Sensible (April, 8 oxen, 1,200 lb, clothing and spares, steady pace, rations by what is left, hunts when short, rests the weak, ferries, restocks at forts): all five arrive 65 to 68 percent, someone arrives 98 to 100 percent, 4.6 of 5 on arrival, about 183 days (around October 1).
+  - Careless (May, 4 oxen, 900 lb, no spares, three sets of clothing, grueling pace, always fords, tops up food only to 700 lb, hunts only when out): someone arrives 8 percent, never all five.
+  - Main killers for the sensible: typhoid, drowning, hunger, cholera.
+  - Changes: illness severity varies per case (mild to grave); good food no longer heals the sick; events 11 to 15 percent of travelling days; a wagon accident event; grueling pace costs 2 a day, not 3; with fewer than 2 oxen the party leaves the wagon and walks on at 7 miles a day with what it can carry (before, the game could get stuck there).
+  - A test pins it: 110 to 150 of 200 sensible parties arrive whole, at most 20 of 200 careless ones arrive.

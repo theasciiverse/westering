@@ -173,7 +173,7 @@ fn status(game: &Game) -> Vec<Line<'static>> {
     vec![
         Line::from(vec![bold(format!("{:<36}", date::format(game.day))), Span::raw(format!("Weather: {}", j.weather.describe()))]),
         row(format!("Health: {}", trail::health_word(&game.party)), format!("Pace: {}   Rations: {}", j.pace.name(), j.rations.name())),
-        row(format!("Provisions: {} lb", game.supplies.get(Item::Food)), format!("Oxen: {}, {}", game.supplies.get(Item::Oxen), trail::oxen_word(j.oxen_health))),
+        row(format!("Provisions: {} lb", game.supplies.get(Item::Food)), if game.on_foot { "On foot, the wagon left behind".to_string() } else { format!("Oxen: {}, {}", game.supplies.get(Item::Oxen), trail::oxen_word(j.oxen_health)) }),
         row(format!("Next: {}, {:.0} mi", game.next_landmark(), game.left.max(0.0)), format!("Travelled: {:.0} miles", j.miles)),
         Line::from(people(game)),
     ]

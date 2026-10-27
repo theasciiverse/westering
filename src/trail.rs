@@ -43,7 +43,7 @@ impl Pace {
         match self {
             Pace::Steady => 0,
             Pace::Hard => 1,
-            Pace::Grueling => 3,
+            Pace::Grueling => 2,
         }
     }
 }
@@ -245,8 +245,9 @@ fn grass(day: u32, region: Region) -> f64 {
 
 /// Miles the team pulls in a day at a pace, before the weather.
 pub fn team_miles(j: &Journey, oxen: u32) -> f64 {
+    // on foot, without the wagon
     if oxen < 2 {
-        return 0.0;
+        return 7.0;
     }
     let team = (oxen as f64 / 6.0).min(1.15).sqrt();
     j.pace.miles() * team * (0.45 + 0.55 * j.oxen_health / 100.0)
@@ -277,6 +278,10 @@ pub fn day(rng: &mut Rng, j: &mut Journey, day: u32, party: &mut [Person], suppl
 
     for p in party.iter_mut().filter(|p| p.alive()) {
         let mut change = if fed >= 1.0 { j.rations.effect() } else { -2 - (8.0 * (1.0 - fed)) as i32 };
+        // good food does not cure the sick, though poor food hurts them
+        if p.illness.is_some() {
+            change = change.min(0);
+        }
         if resting {
             change += 4;
         } else {

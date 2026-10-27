@@ -92,6 +92,8 @@ pub struct Game {
     pub epitaph_text: String,
     /// days hunted on this stretch of road
     pub hunted: u32,
+    /// the wagon has been left behind
+    pub on_foot: bool,
 }
 
 impl Game {
@@ -126,6 +128,7 @@ impl Game {
             depth: 0.0,
             epitaph_text: String::new(),
             hunted: 0,
+            on_foot: false,
         }
     }
 
@@ -333,6 +336,21 @@ impl Game {
         }
     }
 
+    /// With no team left the wagon stays behind, and the party walks on with
+    /// what it can carry on its backs and the last ox, if there is one.
+    fn abandon_wagon(&mut self) {
+        self.on_foot = true;
+        let alive = self.alive() as u32;
+        let s = &mut self.supplies;
+        let food = s.get(Item::Food).min(40 * alive + 60 * s.get(Item::Oxen));
+        s.set(Item::Food, food);
+        for part in [Item::Wheel, Item::Axle, Item::Tongue] {
+            s.set(part, 0);
+        }
+        info!("wagon abandoned, walking on with {food} lb");
+        self.diary.push(format!("{}: With no team to pull it, you leave the wagon by the road and walk on with {food} lb of provisions on your backs.", date::format(self.day)));
+    }
+
     /// A day's hunting, if there is shot for it.
     fn go_hunting(&mut self) {
         let shot = self.supplies.get(Item::Shot);
@@ -389,9 +407,8 @@ impl Game {
     /// Travel on for up to a week, stopping at the next landmark or when
     /// something happens that the party must deal with.
     fn travel(&mut self) {
-        if self.supplies.get(Item::Oxen) < 2 {
-            self.note = "You have no team to pull the wagon.".into();
-            return;
+        if self.supplies.get(Item::Oxen) < 2 && !self.on_foot {
+            self.abandon_wagon();
         }
         let from = self.day;
         let (mut miles, mut hungry, mut cold, mut died) = (0.0, false, false, Vec::new());

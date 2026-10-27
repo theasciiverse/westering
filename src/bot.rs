@@ -37,7 +37,7 @@ pub fn play(seed: u64, strategy: Strategy) -> Game {
         g.key(Key::Enter);
     }
     // the month: April for the sensible, June for the careless
-    let month = if sensible { 1 } else { 3 };
+    let month = if sensible { 1 } else { 2 };
     while g.cursor < month {
         g.key(Key::Down);
     }
@@ -51,8 +51,10 @@ pub fn play(seed: u64, strategy: Strategy) -> Game {
             buy_until(&mut g, part, 1);
         }
     } else {
+        // enough to start, nothing to spare
         buy_until(&mut g, Item::Oxen, 4);
-        buy_until(&mut g, Item::Food, 500);
+        buy_until(&mut g, Item::Food, 900);
+        buy_until(&mut g, Item::Clothing, 3);
         buy_until(&mut g, Item::Shot, 100);
     }
     g.cursor = ITEMS.len();
@@ -65,7 +67,12 @@ pub fn play(seed: u64, strategy: Strategy) -> Game {
         match g.screen {
             Screen::Trail => {
                 if !sensible {
-                    g.trail_choice(0);
+                    // hunt only once the flour has run out
+                    if g.supplies.get(Item::Food) < 15 && g.hunted < 3 && g.supplies.get(Item::Shot) >= crate::hunt::SHOT_NEEDED {
+                        g.trail_choice(2);
+                    } else {
+                        g.trail_choice(0);
+                    }
                     continue;
                 }
                 let alive = g.alive() as u32;
@@ -100,7 +107,14 @@ pub fn play(seed: u64, strategy: Strategy) -> Game {
                         g.key(Key::Enter);
                         g.landmark_choice(1);
                     }
-                    Kind::Fort(_) => g.landmark_choice(n - 1),
+                    Kind::Fort(_) => {
+                        // tops up the flour, no more
+                        g.landmark_choice(0);
+                        buy_until(&mut g, Item::Food, 700);
+                        g.cursor = ITEMS.len();
+                        g.key(Key::Enter);
+                        g.landmark_choice(n - 1);
+                    }
                     // the sensible keep to the road and pay the toll; the careless cut corners
                     Kind::Fork => g.landmark_choice(if sensible && g.money >= 500 { 1 } else { 0 }.min(n - 1)),
                     _ if l.name == "The Dalles" => g.landmark_choice(if sensible && g.money >= 500 { 0 } else { 1 }),
@@ -139,8 +153,20 @@ pub fn report(n: u64, first_seed: u64) -> String {
     let mut out = String::new();
     for strategy in [Strategy::Sensible, Strategy::Careless] {
         let (mut arrived, mut alive, mut days, mut score) = (0, 0, 0, 0i64);
+        let mut whole = 0;
+        let mut causes: std::collections::BTreeMap<String, u32> = Default::default();
+        let mut lost_at: std::collections::BTreeMap<&str, u32> = Default::default();
         for seed in first_seed..first_seed + n {
             let g = play(seed, strategy);
+            for p in g.party.iter().filter(|p| !p.alive()) {
+                *causes.entry(p.cause.clone().unwrap_or_default()).or_default() += 1;
+            }
+            if g.alive() == 5 && g.arrived() {
+                whole += 1;
+            }
+            if !g.arrived() {
+                *lost_at.entry(ROUTE[g.to].name).or_default() += 1;
+            }
             if g.arrived() {
                 arrived += 1;
                 alive += g.alive();
@@ -156,6 +182,27 @@ pub fn report(n: u64, first_seed: u64) -> String {
             per(days as f64),
             per(score as f64)
         ));
+        out.push_str(&format!("  all five arrived: {whole}\n  deaths: {causes:?}\n  lost on the way to: {lost_at:?}\n"));
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The balance the game is tuned to (PLAN.md, M9): a sensible party
+    /// usually gets everyone through, a careless one almost never arrives.
+    #[test]
+    fn sensible_parties_mostly_arrive_whole_and_careless_ones_rarely_arrive() {
+        let n = 200;
+        let whole = (0..n).filter(|&s| {
+            let g = play(s, Strategy::Sensible);
+            g.arrived() && g.alive() == 5
+        });
+        let whole = whole.count();
+        let careless = (0..n).filter(|&s| play(s, Strategy::Careless).arrived()).count();
+        assert!((110..=150).contains(&whole), "sensible, whole party: {whole} of {n}");
+        assert!(careless <= 20, "careless arrived: {careless} of {n}");
+    }
 }
