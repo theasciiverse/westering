@@ -66,7 +66,7 @@ Rules for the night:
   bot strategy and tune so a sensible party arrives about 60 to 70
   percent of the time and a careless one rarely does. Record the numbers
   here.
-- [ ] 10. Catalog readiness: README.md (in the style of Moraen's), LICENSE
+- [x] 10. Catalog readiness: README.md (in the style of Moraen's), LICENSE
   (MIT, David Sandquist), CLAUDE.md status updated, .github/workflows/
   release.yml (adapted from terminal-pong, no nfpm packages unless trivial),
   hub manifest draft in this folder (not in hub, David reviews it first).
@@ -89,3 +89,4 @@ Rules for the night:
   - Main killers for the sensible: typhoid, drowning, hunger, cholera.
   - Changes: illness severity varies per case (mild to grave); good food no longer heals the sick; events 11 to 15 percent of travelling days; a wagon accident event; grueling pace costs 2 a day, not 3; with fewer than 2 oxen the party leaves the wagon and walks on at 7 miles a day with what it can carry (before, the game could get stuck there).
   - A test pins it: 110 to 150 of 200 sensible parties arrive whole, at most 20 of 200 careless ones arrive.
+- M10 done: README.md, LICENSE (MIT, 2026 David Sandquist), release workflow for six targets adapted from terminal-pong without the system packages (YAML checked, not run: there is no GitHub repo), draft manifest and page in `asciiverse/` (72x24 minimum, checked headless), CLAUDE.md status and code map; the Westering lines in games/CLAUDE.md and ROSTER.md updated.

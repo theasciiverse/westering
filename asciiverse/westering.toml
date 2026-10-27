@@ -1,0 +1,42 @@
+# DRAFT for hub/catalog/westering.toml, written overnight 2026-10-27 for
+# David to review; not in hub yet. No release or cast exists yet.
+schema_version = 1
+id = "westering"
+kind = "game"
+title = "Westering"
+description = "Take a wagon party two thousand miles from Independence to the Willamette Valley in 1848: outfit, pace and rations, hunting, seven rivers and the forts between."
+year = 2026
+license = "MIT"
+repo = "theasciiverse/westering"
+provenance = "A journey game in the line of The Oregon Trail (Don Rawitsch, Bill Heinemann and Paul Dillenberger, 1971), on the real road of 1848, written for Asciiverse in 2026."
+topics = ["oregon trail", "journey", "history", "survival", "wagon", "1848", "rust"]
+genre = "strategy"
+
+[developer]
+name = "Asciiverse"
+url = "https://asciiverse.sh"
+
+# the archive holds westering, README.md and LICENSE; nothing is saved
+[exec]
+game = "westering"
+args = []
+
+# the text is set in a 72-column page; 24 rows fit every screen
+[min_terminal]
+cols = 72
+rows = 24
+
+[requires]
+utf8 = false
+color = "truecolor"
+mouse = false
+gamepad = false
+
+# 100x30, to be recorded: outfitting in Independence, a week on the
+# Platte with a river crossing, the end page
+[media]
+cast = "asciiverse/westering.cast"
+thumbnail_at = 0.0
+
+[release]
+source = "github"

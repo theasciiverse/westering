@@ -6,9 +6,32 @@ heading west, with supplies to buy, distances to cover, rivers to cross,
 game to hunt, weather and illness to survive, and the odds against
 arriving. Rust + Ratatui, our own code, writing and art.
 
-**Status:** folder and notes only, 2026-10-27. No code. Put on the roster
-by David, 2026-10-27, as the answer to "can we offer The Oregon Trail in
-Asciiverse?" (see Rights).
+**Status:** playable start to finish, built overnight 2026-10-27 by Claude
+in a loop while David slept (`PLAN.md` has the milestones and the log). Put
+on the roster by David, 2026-10-27, as the answer to "can we offer The
+Oregon Trail in Asciiverse?" (see Rights). Local git repo only; no GitHub
+repo, release or cast yet. A draft hub manifest and page are in
+`asciiverse/` for David to review before they go to `hub/catalog/`.
+
+## Code
+
+Rust + Ratatui, edition 2024, no dependencies beyond ratatui, log and
+env_logger.
+
+- `main.rs`: terminal loop and the headless modes: `--script KEYS` plays
+  keys and prints the screen (`>` Enter, `<` Backspace, `!` Esc, `^` `_`
+  `{` `}` arrows), `--bot N` runs N journeys with a sensible and a careless
+  rule player and prints the outcome, `--bot-show SEED [--careless]` prints
+  one's last screen
+- `game.rs`: the screens and every key; `ui.rs` draws them on a 72-column page
+- `party.rs` (people, goods, store prices), `trail.rs` (a day: miles, food,
+  weather, health, oxen), `route.rs` (the 25 landmarks), `events.rs`,
+  `river.rs`, `hunt.rs`, `bot.rs`, `date.rs`, `rng.rs` (SplitMix64, so a
+  seed replays a journey)
+- `RUST_LOG=debug westering 2>westering.log` logs keys, screens, events and
+  outcomes
+- Balance is pinned by a test in `bot.rs`; rerun `--bot 400` after changing
+  any odds and update the numbers in `PLAN.md`
 
 ## Name
 
@@ -50,6 +73,6 @@ Trail once it is playable.
 
 ## Open
 
-Everything else: scope (one trail or several), how much simulation, the
-hunting scene, art style (half blocks, Braille, plain text like the
-teletype original), sources for the historical trail.
+The name (Steam, itch.io and crates.io not checked); the art (plain text
+now, half-block landmark scenes considered); an action hunting scene; the
+cast recording; the GitHub repo and first release.
