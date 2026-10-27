@@ -10,7 +10,9 @@
 //! prints the screen as text. In a script `>` is Enter, `<` Backspace, `!`
 //! Esc, `^` and `_` the up and down arrows; every other character is itself.
 
+mod date;
 mod game;
+mod party;
 mod rng;
 mod ui;
 
@@ -59,6 +61,8 @@ fn run(seed: u64) -> io::Result<()> {
                     KeyCode::Backspace => Key::Backspace,
                     KeyCode::Up => Key::Up,
                     KeyCode::Down => Key::Down,
+                    KeyCode::Left => Key::Left,
+                    KeyCode::Right => Key::Right,
                     _ => continue,
                 };
                 game.key(key);
@@ -71,8 +75,8 @@ fn run(seed: u64) -> io::Result<()> {
     result
 }
 
-/// The keys of a script, with `>` `<` `!` `^` `_` standing for Enter,
-/// Backspace, Esc, up and down.
+/// The keys of a script, with `>` `<` `!` `^` `_` `{` `}` standing for
+/// Enter, Backspace, Esc and the up, down, left and right arrows.
 pub fn script_keys(keys: &str) -> impl Iterator<Item = Key> + '_ {
     keys.chars().map(|c| match c {
         '>' => Key::Enter,
@@ -80,6 +84,8 @@ pub fn script_keys(keys: &str) -> impl Iterator<Item = Key> + '_ {
         '!' => Key::Esc,
         '^' => Key::Up,
         '_' => Key::Down,
+        '{' => Key::Left,
+        '}' => Key::Right,
         c => Key::Char(c),
     })
 }

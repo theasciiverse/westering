@@ -29,7 +29,7 @@ Rules for the night:
 - [x] 1. Crate scaffold: Cargo.toml (edition 2024, ratatui 0.30, log,
   env_logger), main loop, title screen, `--script`/`--seed` headless mode,
   a seeded RNG of our own (no rand dependency needed), git init.
-- [ ] 2. The party and outfitting: name the leader and four companions
+- [x] 2. The party and outfitting: name the leader and four companions
   (defaults offered), a starting purse, the general store in Independence,
   Missouri, spring 1848: oxen (yokes), flour and bacon (lb), clothing
   sets, powder and shot, spare wheels, axles, tongues. Pick the departure
@@ -77,3 +77,4 @@ Rules for the night:
 ## Log
 
 - M1 done: crate, title screen, `--script`/`--seed` headless mode, SplitMix64 RNG with a test.
+- M2 done: naming the party (random 1840s defaults), departure month March to July, the Independence store with purse ($800) and a 2,000 lb wagon. Flour and bacon became one item, Provisions, to keep the store short.
