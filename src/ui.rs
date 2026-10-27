@@ -250,7 +250,7 @@ fn trail(f: &mut Frame, page: Rect, game: &Game) {
     body.extend(diary(game, rows, page.width as usize));
     body.push(Line::default());
     body.extend(menu);
-    page_with(f, page, "On the trail", body, &game.note, keys(&[("Up Down", "choose"), ("Enter", "do it"), ("1-5", "at once")]));
+    page_with(f, page, "On the trail", body, &game.note, keys(&[("Up Down", "choose"), ("Enter", "do it"), ("1-6", "at once")]));
 }
 
 fn landmark(f: &mut Frame, page: Rect, game: &Game) {

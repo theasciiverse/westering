@@ -59,7 +59,7 @@ Rules for the night:
   a score from survivors, goods and how early you arrived, and a short
   epitaph line for each who died on the trail, written by the player
   (default offered). Play again.
-- [ ] 8. Hunting as text: spend a day and shot, success by skill of
+- [x] 8. Hunting as text: spend a day and shot, success by skill of
   the dice and region (buffalo on the plains, antelope, deer, elk in the
   mountains), carry limit of 100 lb back to the wagon.
 - [ ] 9. Balance: run 200 seeded headless playthroughs with a simple
@@ -82,3 +82,4 @@ Rules for the night:
 - M5 done: 20 events weighted by region, month, pace and time on the road (illness with a daily drain and a course, breakdowns that use spares or cost days, strays, hail, poor grass, bad water, lost trail, abandoned wagons, good camps, help from Lakota, Shoshone and Nez Perce families, fire, theft, mud). About one travelling day in ten. Cholera is rare on purpose: the trail's cholera years began in 1849. Deaths carry a cause; the status shows each person's health and illness.
 - M6 done: seven rivers, depth from the river's usual depth times snowmelt by month (highest May and June) and a daily drift; drive across, float the sealed box (a day), ferry where one ran in 1848 (Kansas River, North Platte, Green River), or camp and wait. Losses of goods and oxen, and drowning at deep fords. Quicksand on the South Platte. Rafting the Columbia costs three days and runs the Cascades rapids. Cholera weighting checked: NPS says cholera reached St. Louis in early 1849.
 - M7 done: graves marked with the date and place, an epitaph screen for each of the dead (words offered, the player may rewrite them), the end page with a scored reckoning on arrival (survivors and their health, oxen, goods, purse, days before October) or the graves if all were lost; Enter plays again. Also `src/bot.rs`: a sensible and a careless rule player, `--bot N` and `--bot-show SEED`. Before any balancing: sensible arrives 100 of 100 with 4.8 alive, careless 0 of 100. Too easy for the sensible: M9.
+- M8 done: Go hunting on the trail menu (item 3): a day and 10 to 30 rounds, game by region and season (buffalo on the High Plains May to August, antelope, deer, elk, sage hens, rabbits, turkey), 100 lb carried back at most, and game grows wary with each day hunted on the same stretch.

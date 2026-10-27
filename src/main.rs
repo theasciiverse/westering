@@ -17,6 +17,7 @@ mod bot;
 mod date;
 mod events;
 mod game;
+mod hunt;
 mod party;
 mod river;
 mod rng;

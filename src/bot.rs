@@ -78,7 +78,9 @@ pub fn play(seed: u64, strategy: Strategy) -> Game {
                 let late = g.day >= date::first_of(8) + 15;
                 g.journey.pace = if late { Pace::Hard } else { Pace::Steady };
                 let weak = g.party.iter().filter(|p| p.alive()).any(|p| p.health < 45);
-                if weak && food_days >= 4 {
+                if food_days < 20 && g.hunted < 3 && g.supplies.get(Item::Shot) >= crate::hunt::SHOT_NEEDED {
+                    g.trail_choice(2);
+                } else if weak && food_days >= 4 {
                     g.trail_choice(1);
                 } else {
                     g.trail_choice(0);

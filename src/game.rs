@@ -4,6 +4,7 @@
 
 use crate::date;
 use crate::events;
+use crate::hunt;
 use crate::river::{self, Way};
 use crate::party::{self, ITEMS, Item, Person, Supplies};
 use crate::rng::Rng;
@@ -54,7 +55,7 @@ pub struct Offer {
 }
 
 /// The trail menu, in order.
-pub const TRAIL_MENU: [&str; 5] = ["Continue on", "Rest a day", "Change the pace", "Change the rations", "Look for a trade"];
+pub const TRAIL_MENU: [&str; 6] = ["Continue on", "Rest a day", "Go hunting", "Change the pace", "Change the rations", "Look for a trade"];
 
 pub const PARTY: usize = 5;
 
@@ -89,6 +90,8 @@ pub struct Game {
     pub depth: f64,
     /// the epitaph being written
     pub epitaph_text: String,
+    /// days hunted on this stretch of road
+    pub hunted: u32,
 }
 
 impl Game {
@@ -122,6 +125,7 @@ impl Game {
             started: 0,
             depth: 0.0,
             epitaph_text: String::new(),
+            hunted: 0,
         }
     }
 
@@ -273,6 +277,7 @@ impl Game {
     }
 
     fn head_for(&mut self, to: usize, miles: f64) {
+        self.hunted = 0;
         self.to = to;
         self.left = miles;
         self.journey.region = ROUTE[to].region;
@@ -315,16 +320,39 @@ impl Game {
                 }
                 self.after_days();
             }
-            2 => {
+            2 => self.go_hunting(),
+            3 => {
                 self.journey.pace = self.journey.pace.next();
                 self.note = format!("The pace is now {}.", self.journey.pace.name());
             }
-            3 => {
+            4 => {
                 self.journey.rations = self.journey.rations.next();
                 self.note = format!("Rations are now {}.", self.journey.rations.name());
             }
             _ => self.look_for_trade(),
         }
+    }
+
+    /// A day's hunting, if there is shot for it.
+    fn go_hunting(&mut self) {
+        let shot = self.supplies.get(Item::Shot);
+        if shot < hunt::SHOT_NEEDED {
+            self.note = "You have too little powder and shot to hunt.".into();
+            return;
+        }
+        let from = self.day;
+        let h = hunt::hunt(&mut self.rng, self.journey.region, self.day, self.hunted, shot);
+        self.hunted += 1;
+        self.supplies.take(Item::Shot, h.shot);
+        self.supplies.add(Item::Food, h.meat);
+        info!("hunted: {} lb, {} rounds", h.meat, h.shot);
+        let d = self.live_day(true);
+        self.diary.push(format!("{}: Hunting. {}", date::format(from), h.text));
+        for name in &d.died {
+            let o = self.obituary(name);
+            self.diary.push(o);
+        }
+        self.after_days();
     }
 
     /// One day lived, travelling or resting; returns the day's miles.
