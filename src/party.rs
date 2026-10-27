@@ -134,6 +134,8 @@ pub struct Person {
     pub illness: Option<Illness>,
     /// what killed them, for the diary and the end
     pub cause: Option<String>,
+    /// where and when they were buried, "May 3, 1848, on the way to Fort Laramie"
+    pub grave: Option<String>,
     pub epitaph: Option<String>,
 }
 
@@ -147,7 +149,7 @@ pub struct Illness {
 
 impl Person {
     pub fn new(name: &str) -> Person {
-        Person { name: name.into(), health: 100, illness: None, cause: None, epitaph: None }
+        Person { name: name.into(), health: 100, illness: None, cause: None, grave: None, epitaph: None }
     }
 
     pub fn alive(&self) -> bool {

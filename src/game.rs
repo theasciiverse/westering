@@ -39,6 +39,8 @@ pub enum Screen {
     River,
     /// a trade offered by a passing party
     Trade(Offer),
+    /// writing the words for the grave of the dead person at this index
+    Epitaph(usize),
     /// the journey is over, arrived or not
     End,
     Quit,
@@ -85,6 +87,8 @@ pub struct Game {
     pub started: u32,
     /// the depth of the river being crossed today, in feet
     pub depth: f64,
+    /// the epitaph being written
+    pub epitaph_text: String,
 }
 
 impl Game {
@@ -117,6 +121,7 @@ impl Game {
             bought_here: Supplies::default(),
             started: 0,
             depth: 0.0,
+            epitaph_text: String::new(),
         }
     }
 
@@ -153,8 +158,13 @@ impl Game {
             Screen::Landmark => self.landmark_key(key),
             Screen::River => self.river_key(key),
             Screen::Trade(offer) => self.trade_key(offer, key),
+            Screen::Epitaph(i) => self.epitaph_key(i, key),
             Screen::End => match key {
-                Key::Enter | Key::Esc | Key::Char('q') => self.go(Screen::Quit),
+                Key::Enter | Key::Char('y') => {
+                    let seed = self.rng.next();
+                    *self = Game::new(seed);
+                }
+                Key::Esc | Key::Char('q') | Key::Char('n') => self.go(Screen::Quit),
                 _ => {}
             },
             Screen::Quit => {}
@@ -216,7 +226,7 @@ impl Game {
         (item.good().price as f64 * self.prices).round() as u32
     }
 
-    fn buy(&mut self, item: Item) {
+    pub(crate) fn buy(&mut self, item: Item) {
         let g = item.good();
         let price = self.price(item);
         if self.money < price {
@@ -289,7 +299,7 @@ impl Game {
         }
     }
 
-    fn trail_choice(&mut self, i: usize) {
+    pub(crate) fn trail_choice(&mut self, i: usize) {
         match i {
             0 => self.travel(),
             1 => {
@@ -327,7 +337,19 @@ impl Game {
         for (name, what) in &d.recovered {
             info!("{name} got over {what}");
         }
+        self.bury(&d.died);
         d
+    }
+
+    /// Mark the graves of those who died today.
+    fn bury(&mut self, died: &[String]) {
+        let place = if self.left <= 0.0 { format!("at {}", ROUTE[self.at].name) } else { format!("on the way to {}", ROUTE[self.to].name) };
+        let when = date::format(self.day.saturating_sub(1));
+        for p in self.party.iter_mut().filter(|p| !p.alive() && p.grave.is_none()) {
+            if died.contains(&p.name) || p.cause.as_deref() == Some("drowning") {
+                p.grave = Some(format!("{when}, {place}"));
+            }
+        }
     }
 
     /// "Ada has died of cholera."
@@ -406,7 +428,7 @@ impl Game {
         if self.alive() == 0 {
             self.diary.push("There is no one left to go on.".into());
             info!("all dead on {}", date::format(self.day));
-            self.go(Screen::End);
+            self.finish();
         }
     }
 
@@ -421,16 +443,76 @@ impl Game {
         if l.name == "Fort Vancouver" {
             let lines = river::rapids(&mut self.rng, &mut self.party, &mut self.supplies);
             self.diary.extend(lines);
+            self.bury(&[]);
             if self.alive() == 0 {
-                self.go(Screen::End);
+                self.finish();
                 return;
             }
         }
         if l.kind == Kind::End {
-            self.go(Screen::End);
+            self.finish();
         } else {
             self.go(Screen::Landmark);
         }
+    }
+
+    /// The journey is over: the graves first, then the reckoning.
+    fn finish(&mut self) {
+        info!("journey over on {}: {} of {} alive, score {}", date::format(self.day), self.alive(), PARTY, self.score().iter().map(|s| s.1).sum::<i64>());
+        self.next_grave(0);
+    }
+
+    fn next_grave(&mut self, from: usize) {
+        match (from..self.party.len()).find(|&i| !self.party[i].alive() && self.party[i].epitaph.is_none()) {
+            Some(i) => {
+                self.go(Screen::Epitaph(i));
+                self.epitaph_text = default_epitaph(&self.party[i], &mut self.rng);
+            }
+            None => self.go(Screen::End),
+        }
+    }
+
+    fn epitaph_key(&mut self, i: usize, key: Key) {
+        match key {
+            Key::Char(c) if self.epitaph_text.chars().count() < 60 && !c.is_control() => self.epitaph_text.push(c),
+            Key::Backspace => {
+                self.epitaph_text.pop();
+            }
+            Key::Enter => {
+                let words = self.epitaph_text.trim().to_string();
+                self.party[i].epitaph = Some(words);
+                self.next_grave(i + 1);
+            }
+            _ => {}
+        }
+    }
+
+    pub fn arrived(&self) -> bool {
+        ROUTE[self.at].kind == Kind::End && self.alive() > 0
+    }
+
+    /// The score, line by line: what it is for and how much.
+    pub fn score(&self) -> Vec<(String, i64)> {
+        if !self.arrived() {
+            return Vec::new();
+        }
+        let mut lines = Vec::new();
+        for p in self.party.iter().filter(|p| p.alive()) {
+            lines.push((format!("{}, in {} health", p.name, trail::health_of(p)), 300 + 3 * p.health as i64));
+        }
+        let s = &self.supplies;
+        lines.push((format!("{} oxen", s.get(Item::Oxen)), 25 * s.get(Item::Oxen) as i64));
+        lines.push((format!("{} lb of provisions", s.get(Item::Food)), s.get(Item::Food) as i64 / 5));
+        lines.push((format!("{} sets of clothing", s.get(Item::Clothing)), 5 * s.get(Item::Clothing) as i64));
+        let spares = s.get(Item::Wheel) + s.get(Item::Axle) + s.get(Item::Tongue);
+        lines.push((format!("{spares} spare parts"), 10 * spares as i64));
+        lines.push((format!("{} in your purse", party::money(self.money)), self.money as i64 / 100));
+        // ahead of the autumn rains: October 1 is the mark
+        let early = date::first_of(10) as i64 - self.day as i64;
+        if early > 0 {
+            lines.push((format!("{early} days before October"), 5 * early));
+        }
+        lines
     }
 
     /// The choices at the landmark just reached.
@@ -454,7 +536,7 @@ impl Game {
         }
     }
 
-    fn landmark_choice(&mut self, i: usize) {
+    pub(crate) fn landmark_choice(&mut self, i: usize) {
         let l = &ROUTE[self.at];
         match (l.kind, l.next) {
             (_, Next::Fork(roads)) => {
@@ -508,7 +590,7 @@ impl Game {
         }
     }
 
-    fn river_choice(&mut self, way: Way) {
+    pub(crate) fn river_choice(&mut self, way: Way) {
         let Kind::River { width, ferry, .. } = ROUTE[self.at].kind else { return };
         let name = ROUTE[self.at].name;
         match way {
@@ -537,6 +619,7 @@ impl Game {
         info!("crossed {name} by {way:?} at {:.1} ft: {:?}", self.depth, c.lines);
         self.diary.push(format!("{}: Crossed the {}.", date::format(self.day), river::river_name(name)));
         self.diary.extend(c.lines);
+        self.bury(&[]);
         if self.alive() == 0 {
             self.after_days();
             return;
@@ -597,6 +680,23 @@ impl Game {
 
     pub fn done(&self) -> bool {
         self.screen == Screen::Quit
+    }
+}
+
+/// Words for a grave, offered for the player to keep or change.
+fn default_epitaph(p: &Person, rng: &mut Rng) -> String {
+    let lines = [
+        "Gone ahead to the promised land.",
+        "Rest easy. We carried you as far as we could.",
+        "Never saw Oregon, but never stopped walking toward it.",
+        "Beloved. Remembered at every campfire.",
+        "The prairie keeps you now.",
+        "Faithful to the last mile.",
+    ];
+    match p.cause.as_deref() {
+        Some("drowning") => "Taken by the river. Rest where it is quiet.".into(),
+        Some("hunger") => (*rng.pick(&["We had not enough. Forgive us.", "Gave the last of the bread to the children.", "Hungry no more."])).into(),
+        _ => (*rng.pick(&lines)).into(),
     }
 }
 
@@ -671,45 +771,13 @@ mod tests {
         assert!(g.money < Item::Oxen.good().price);
     }
 
-    /// Outfit sensibly, then always go on; the journey must end either way.
-    pub fn bot(seed: u64) -> Game {
-        let mut g = play(seed, ">>>>>>>");
-        for (row, n) in [(0, 3), (1, 20), (2, 10), (3, 5), (4, 1), (5, 1), (6, 1)] {
-            g.cursor = row;
-            for _ in 0..n {
-                g.key(Key::Right);
-            }
-        }
-        g.cursor = ITEMS.len();
-        g.key(Key::Enter);
-        for _ in 0..2000 {
-            match g.screen {
-                Screen::Trail => g.trail_choice(0),
-                Screen::Landmark => {
-                    let n = g.landmark_choices().len();
-                    let pick = if matches!(ROUTE[g.at].kind, Kind::Fort(_)) { n - 1 } else { 0 };
-                    g.landmark_choice(pick);
-                }
-                Screen::River => {
-                    let choices = g.river_choices();
-                    let has = |w: Way| choices.iter().any(|c| c.0 == w);
-                    let way = if g.depth < 3.0 { Way::Drive } else if has(Way::Ferry) && g.money >= 500 { Way::Ferry } else { Way::Float };
-                    g.river_choice(way);
-                }
-                Screen::Trade(_) => g.key(Key::Char('n')),
-                Screen::End => break,
-                ref s => panic!("bot stuck on {s:?}"),
-            }
-        }
-        g
-    }
-
     #[test]
     fn a_journey_ends() {
         for seed in 0..20 {
-            let g = bot(seed);
-            assert_eq!(g.screen, Screen::End, "seed {seed}");
-            eprintln!("seed {seed}: {} alive, {:.0} miles, {}", g.alive(), g.journey.miles, date::format(g.day));
+            for strategy in [crate::bot::Strategy::Sensible, crate::bot::Strategy::Careless] {
+                let g = crate::bot::play(seed, strategy);
+                assert_eq!(g.screen, Screen::End, "seed {seed}");
+            }
         }
     }
 }

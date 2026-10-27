@@ -8,8 +8,12 @@
 //! --release 2>westering.log` for a session log). Without a terminal:
 //! `cargo run -- --script KEYS [--seed N] [--size 80x30]` plays the keys and
 //! prints the screen as text. In a script `>` is Enter, `<` Backspace, `!`
-//! Esc, `^` and `_` the up and down arrows; every other character is itself.
+//! Esc, `^` `_` `{` `}` the up, down, left and right arrows; every other
+//! character is itself. `--bot N [--seed S]` plays N journeys with a
+//! sensible and a careless rule player and prints how they fared;
+//! `--bot-show SEED [--careless]` prints the last screen of one.
 
+mod bot;
 mod date;
 mod events;
 mod game;
@@ -31,6 +35,15 @@ fn main() -> io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let arg = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).map(String::as_str);
     let seed = arg("--seed").and_then(|s| s.parse().ok()).unwrap_or_else(seed);
+    if let Some(n) = arg("--bot") {
+        print!("{}", bot::report(n.parse().unwrap_or(100), seed.min(1 << 40)));
+        return Ok(());
+    }
+    if let Some(s) = arg("--bot-show") {
+        let g = bot::play(s.parse().unwrap_or(0), if args.iter().any(|a| a == "--careless") { bot::Strategy::Careless } else { bot::Strategy::Sensible });
+        print!("{}", render(&g, (80, 50)));
+        return Ok(());
+    }
     if let Some(keys) = arg("--script") {
         let size = arg("--size").and_then(|s| s.split_once('x')).and_then(|(w, h)| Some((w.parse().ok()?, h.parse().ok()?)));
         print!("{}", script(seed, keys, size.unwrap_or((80, 30))));
@@ -96,14 +109,19 @@ pub fn script_keys(keys: &str) -> impl Iterator<Item = Key> + '_ {
 
 /// Play the keys without a terminal and return the screen as text.
 fn script(seed: u64, keys: &str, (w, h): (u16, u16)) -> String {
-    use ratatui::Terminal;
-    use ratatui::backend::TestBackend;
     let mut game = Game::new(seed);
     for k in script_keys(keys) {
         game.key(k);
     }
+    render(&game, (w, h))
+}
+
+/// The screen as text.
+fn render(game: &Game, (w, h): (u16, u16)) -> String {
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
     let mut terminal = Terminal::new(TestBackend::new(w, h)).expect("test backend");
-    terminal.draw(|f| ui::draw(f, &game)).expect("draw");
+    terminal.draw(|f| ui::draw(f, game)).expect("draw");
     let buf = terminal.backend().buffer();
     let mut out = String::new();
     for y in 0..h {

@@ -36,6 +36,7 @@ pub fn draw(f: &mut Frame, game: &Game) {
         Screen::Landmark => landmark(f, page, game),
         Screen::River => river_page(f, page, game),
         Screen::Trade(offer) => trade(f, page, game, *offer),
+        Screen::Epitaph(i) => epitaph(f, page, game, *i),
         Screen::End => end(f, page, game),
         Screen::Quit => {}
     }
@@ -301,10 +302,60 @@ fn trade(f: &mut Frame, page: Rect, game: &Game, offer: game::Offer) {
     page_with(f, page, "A trade", body, &game.note, keys(&[("y", "accept"), ("n", "decline")]));
 }
 
-fn end(f: &mut Frame, page: Rect, game: &Game) {
-    let mut body = status(game);
+fn epitaph(f: &mut Frame, page: Rect, game: &Game, i: usize) {
+    let p = &game.party[i];
+    let w = page.width as usize;
+    let mut body = vec![Line::from(bold(format!("Here lies {}", p.name))), Line::default()];
+    let died = format!("Died of {}, {}.", p.cause.as_deref().unwrap_or("the trail"), p.grave.as_deref().unwrap_or("on the trail"));
+    body.extend(wrap(&died, w).into_iter().map(Line::from));
     body.push(Line::default());
-    let rows = (page.height as usize).saturating_sub(3 + body.len() + 4);
-    body.extend(diary(game, rows, page.width as usize));
-    page_with(f, page, "The end of the trail", body, "", keys(&[("Enter", "quit")]));
+    body.push(Line::from("You cut a board for the grave. What shall it say?"));
+    body.push(Line::default());
+    body.push(Line::from(vec![
+        amber("> "),
+        Span::raw(game.epitaph_text.clone()),
+        Span::styled("_", Style::new().fg(AMBER).add_modifier(Modifier::SLOW_BLINK)),
+    ]));
+    page_with(f, page, "A grave by the trail", body, "", keys(&[("type", "the words"), ("Backspace", "erase"), ("Enter", "done")]));
+}
+
+fn end(f: &mut Frame, page: Rect, game: &Game) {
+    let w = page.width as usize;
+    let mut body = Vec::new();
+    let days = game.day - game.started;
+    let heading = if game.arrived() {
+        let text = format!(
+            "You reached Oregon City on {}, {} days and {:.0} miles after leaving Independence, with {} of the {} who set out.",
+            date::format(game.day),
+            days,
+            game.journey.miles,
+            game.alive(),
+            PARTY
+        );
+        body.extend(wrap(&text, w).into_iter().map(Line::from));
+        body.push(Line::default());
+        let score = game.score();
+        for (what, points) in &score {
+            body.push(Line::from(vec![Span::raw(format!("  {what:<50}")), amber(format!("{points:>8}"))]));
+        }
+        body.push(Line::from(vec![bold(format!("  {:<50}", "Score")), amber(format!("{:>8}", score.iter().map(|s| s.1).sum::<i64>()))]));
+        "The Willamette Valley"
+    } else {
+        let text = format!("The trail took every one of you. The last of the party died on {}, {:.0} miles from Independence.", date::format(game.day.saturating_sub(1)), game.journey.miles);
+        body.extend(wrap(&text, w).into_iter().map(Line::from));
+        "The end of the trail"
+    };
+    let graves: Vec<_> = game.party.iter().filter(|p| !p.alive()).collect();
+    if !graves.is_empty() {
+        body.push(Line::default());
+        body.push(Line::from(amber("Graves along the trail")));
+        for p in graves {
+            let text = format!("{}, died of {}, {}.", p.name, p.cause.as_deref().unwrap_or("the trail"), p.grave.as_deref().unwrap_or("on the trail"));
+            body.extend(wrap(&text, w).into_iter().map(|l| Line::from(format!("  {l}"))));
+            if let Some(e) = p.epitaph.as_deref().filter(|e| !e.is_empty()) {
+                body.push(Line::from(dim(format!("    \"{e}\""))));
+            }
+        }
+    }
+    page_with(f, page, heading, body, "", keys(&[("Enter", "play again"), ("Esc", "quit")]));
 }
