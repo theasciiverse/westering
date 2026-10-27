@@ -52,7 +52,7 @@ Rules for the night:
   storms, hail, a found cache, a trade offer, a lost trail, bad water,
   grass scarce. Weighted by region and season, written in our own words.
   Deaths are possible; the game goes on with the survivors.
-- [ ] 6. River crossings: depth and width from season and the river;
+- [x] 6. River crossings: depth and width from season and the river;
   choices to wade, float the wagon, pay for a ferry where one historically
   ran, or wait for the water to drop; outcomes with real risk.
 - [ ] 7. The end: arrival in the Willamette Valley (or every one lost),
@@ -80,3 +80,4 @@ Rules for the night:
 - M2 done: naming the party (random 1840s defaults), departure month March to July, the Independence store with purse ($800) and a 2,000 lb wagon. Flour and bacon became one item, Provisions, to keep the store short.
 - M3 and M4 done together (the trail needs the route): pace, rations, health, oxen, weather by month and region, travel a week at a time stopping at landmarks, rest, trade offers; 25 landmarks with both forks (Sublette Cutoff or Fort Bridger; Barlow Road or the Columbia), fort trade rooms at 1.4 to 2.2 times Independence prices. Mileages are rounded figures; checked against Wikipedia's Route of the Oregon Trail where it gives them (Fort Bridger to Fort Hall about 210, ours 230; Three Island Crossing to Fort Boise about 130, ours 125; Sublette Cutoff saves about 70, ours 70); totals 1,820 to 1,950 miles, matching "not quite 2,000" (historicoregoncity.org). Rivers are crossed without risk until M6. A bot that never restocks starves around mile 890 in mid-June: hunting and fort shopping are meant to fix that (M8, M9).
 - M5 done: 20 events weighted by region, month, pace and time on the road (illness with a daily drain and a course, breakdowns that use spares or cost days, strays, hail, poor grass, bad water, lost trail, abandoned wagons, good camps, help from Lakota, Shoshone and Nez Perce families, fire, theft, mud). About one travelling day in ten. Cholera is rare on purpose: the trail's cholera years began in 1849. Deaths carry a cause; the status shows each person's health and illness.
+- M6 done: seven rivers, depth from the river's usual depth times snowmelt by month (highest May and June) and a daily drift; drive across, float the sealed box (a day), ferry where one ran in 1848 (Kansas River, North Platte, Green River), or camp and wait. Losses of goods and oxen, and drowning at deep fords. Quicksand on the South Platte. Rafting the Columbia costs three days and runs the Cascades rapids. Cholera weighting checked: NPS says cholera reached St. Louis in early 1849.

@@ -14,6 +14,7 @@ mod date;
 mod events;
 mod game;
 mod party;
+mod river;
 mod rng;
 mod route;
 mod trail;

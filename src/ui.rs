@@ -34,6 +34,7 @@ pub fn draw(f: &mut Frame, game: &Game) {
         Screen::Store => store(f, page, game),
         Screen::Trail => trail(f, page, game),
         Screen::Landmark => landmark(f, page, game),
+        Screen::River => river_page(f, page, game),
         Screen::Trade(offer) => trade(f, page, game, *offer),
         Screen::End => end(f, page, game),
         Screen::Quit => {}
@@ -265,6 +266,21 @@ fn landmark(f: &mut Frame, page: Rect, game: &Game) {
         body.push(Line::from(vec![pointer(i == game.cursor), bold(c.clone())]));
     }
     page_with(f, page, l.name, body, &game.note, keys(&[("Up Down", "choose"), ("Enter", "do it")]));
+}
+
+fn river_page(f: &mut Frame, page: Rect, game: &Game) {
+    let l = &ROUTE[game.at];
+    let crate::route::Kind::River { width, .. } = l.kind else { return };
+    let mut body = status(game);
+    body.push(Line::default());
+    for w in wrap(&crate::river::describe(game.depth, width), page.width as usize) {
+        body.push(Line::from(w));
+    }
+    body.push(Line::default());
+    for (i, (_, c)) in game.river_choices().iter().enumerate() {
+        body.push(Line::from(vec![pointer(i == game.cursor), bold(c.clone())]));
+    }
+    page_with(f, page, &format!("Crossing the {}", crate::river::river_name(l.name)), body, &game.note, keys(&[("Up Down", "choose"), ("Enter", "do it"), ("Esc", "back")]));
 }
 
 fn trade(f: &mut Frame, page: Rect, game: &Game, offer: game::Offer) {

@@ -4,6 +4,7 @@
 
 use crate::date;
 use crate::events;
+use crate::river::{self, Way};
 use crate::party::{self, ITEMS, Item, Person, Supplies};
 use crate::rng::Rng;
 use crate::route::{self, Kind, Next, ROUTE};
@@ -34,6 +35,8 @@ pub enum Screen {
     Trail,
     /// arrived at a landmark: its note, and what can be done there
     Landmark,
+    /// at a river, deciding how to cross
+    River,
     /// a trade offered by a passing party
     Trade(Offer),
     /// the journey is over, arrived or not
@@ -80,6 +83,8 @@ pub struct Game {
     pub bought_here: Supplies,
     /// the day the party left Independence
     pub started: u32,
+    /// the depth of the river being crossed today, in feet
+    pub depth: f64,
 }
 
 impl Game {
@@ -111,6 +116,7 @@ impl Game {
             prices: 1.0,
             bought_here: Supplies::default(),
             started: 0,
+            depth: 0.0,
         }
     }
 
@@ -145,6 +151,7 @@ impl Game {
             Screen::Store => self.store_key(key),
             Screen::Trail => self.trail_key(key),
             Screen::Landmark => self.landmark_key(key),
+            Screen::River => self.river_key(key),
             Screen::Trade(offer) => self.trade_key(offer, key),
             Screen::End => match key {
                 Key::Enter | Key::Esc | Key::Char('q') => self.go(Screen::Quit),
@@ -408,6 +415,17 @@ impl Game {
         let l = &ROUTE[self.at];
         info!("reached {} on {}, {:.0} miles", l.name, date::format(self.day), self.journey.miles);
         self.diary.push(format!("{}: Reached {}.", date::format(self.day), l.name));
+        if let Kind::River { depth, .. } = l.kind {
+            self.depth = river::depth_on(&mut self.rng, depth, self.day);
+        }
+        if l.name == "Fort Vancouver" {
+            let lines = river::rapids(&mut self.rng, &mut self.party, &mut self.supplies);
+            self.diary.extend(lines);
+            if self.alive() == 0 {
+                self.go(Screen::End);
+                return;
+            }
+        }
         if l.kind == Kind::End {
             self.go(Screen::End);
         } else {
@@ -449,6 +467,12 @@ impl Game {
                     self.money -= 500;
                 }
                 self.diary.push(format!("{}: {}.", date::format(self.day), label));
+                if label.contains("Raft") {
+                    for _ in 0..3 {
+                        self.live_day(true);
+                    }
+                    self.diary.push("Three days felling pines and lashing them into a raft. The wagon goes on it in pieces.".into());
+                }
                 self.head_for(to, miles);
             }
             (Kind::Fort(f), _) if i == 0 => {
@@ -457,8 +481,67 @@ impl Game {
                 self.go(Screen::Store);
                 self.note = format!("Prices here are {:.1} times those in Independence.", f);
             }
+            (Kind::River { .. }, _) => self.go(Screen::River),
             _ => self.set_out(self.at),
         }
+    }
+
+    /// The ways over the river here, with what each says.
+    pub fn river_choices(&self) -> Vec<(Way, String)> {
+        let Kind::River { ferry, .. } = ROUTE[self.at].kind else { return Vec::new() };
+        let mut v = vec![(Way::Drive, "Drive the team straight across".to_string()), (Way::Float, "Seal the wagon box and float it over (a day)".to_string())];
+        if let Some(cents) = ferry {
+            v.push((Way::Ferry, format!("Pay the ferry ({})", party::money(cents))));
+        }
+        v.push((Way::Wait, "Camp a day and see if the water falls".into()));
+        v
+    }
+
+    fn river_key(&mut self, key: Key) {
+        let choices = self.river_choices();
+        match key {
+            Key::Up => self.cursor = self.cursor.saturating_sub(1),
+            Key::Down => self.cursor = (self.cursor + 1).min(choices.len() - 1),
+            Key::Esc => self.go(Screen::Landmark),
+            Key::Enter => self.river_choice(choices[self.cursor].0),
+            _ => {}
+        }
+    }
+
+    fn river_choice(&mut self, way: Way) {
+        let Kind::River { width, ferry, .. } = ROUTE[self.at].kind else { return };
+        let name = ROUTE[self.at].name;
+        match way {
+            Way::Wait => {
+                self.live_day(true);
+                self.depth = river::wait(&mut self.rng, self.depth);
+                self.note = format!("A day in camp. {}", river::describe(self.depth, width));
+                self.after_days();
+                return;
+            }
+            Way::Ferry => {
+                let cents = ferry.unwrap_or(0);
+                if self.money < cents {
+                    self.note = "You cannot pay the ferry.".into();
+                    return;
+                }
+                self.money -= cents;
+            }
+            Way::Float => {
+                self.live_day(true);
+            }
+            Way::Drive => {}
+        }
+        let quicksand = name.contains("South Platte");
+        let c = river::cross(&mut self.rng, way, self.depth, width, quicksand, &mut self.party, &mut self.supplies);
+        info!("crossed {name} by {way:?} at {:.1} ft: {:?}", self.depth, c.lines);
+        self.diary.push(format!("{}: Crossed the {}.", date::format(self.day), river::river_name(name)));
+        self.diary.extend(c.lines);
+        if self.alive() == 0 {
+            self.after_days();
+            return;
+        }
+        self.set_out(self.at);
     }
 
     /// A day spent asking the other trains what they would trade.
@@ -606,6 +689,12 @@ mod tests {
                     let n = g.landmark_choices().len();
                     let pick = if matches!(ROUTE[g.at].kind, Kind::Fort(_)) { n - 1 } else { 0 };
                     g.landmark_choice(pick);
+                }
+                Screen::River => {
+                    let choices = g.river_choices();
+                    let has = |w: Way| choices.iter().any(|c| c.0 == w);
+                    let way = if g.depth < 3.0 { Way::Drive } else if has(Way::Ferry) && g.money >= 500 { Way::Ferry } else { Way::Float };
+                    g.river_choice(way);
                 }
                 Screen::Trade(_) => g.key(Key::Char('n')),
                 Screen::End => break,
