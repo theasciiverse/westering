@@ -5,6 +5,8 @@
 use crate::date;
 use crate::party::{self, ITEMS, Item, Person, Supplies};
 use crate::rng::Rng;
+use crate::route::{self, Kind, Next, ROUTE};
+use crate::trail::{self, Journey};
 use log::{debug, info};
 
 /// The keys the game knows, the same from the terminal and from a script.
@@ -27,9 +29,26 @@ pub enum Screen {
     Names(usize),
     Month,
     Store,
+    /// on the road between landmarks, with the trail menu
     Trail,
+    /// arrived at a landmark: its note, and what can be done there
+    Landmark,
+    /// a trade offered by a passing party
+    Trade(Offer),
+    /// the journey is over, arrived or not
+    End,
     Quit,
 }
+
+/// Give `give` of one thing for `get` of another.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Offer {
+    pub give: (Item, u32),
+    pub get: (Item, u32),
+}
+
+/// The trail menu, in order.
+pub const TRAIL_MENU: [&str; 5] = ["Continue on", "Rest a day", "Change the pace", "Change the rations", "Look for a trade"];
 
 pub const PARTY: usize = 5;
 
@@ -46,6 +65,18 @@ pub struct Game {
     pub day: u32,
     /// one line under the menu: the store's advice, a warning
     pub note: String,
+    pub journey: Journey,
+    /// the landmark last reached, and the one the wagon is heading for
+    pub at: usize,
+    pub to: usize,
+    /// miles left to `to`
+    pub left: f64,
+    /// what has happened, a line or two per stretch, newest last
+    pub diary: Vec<String>,
+    /// the store's prices against Independence
+    pub prices: f64,
+    /// bought at this store, so it can be put back
+    pub bought_here: Supplies,
 }
 
 impl Game {
@@ -69,6 +100,13 @@ impl Game {
             money: party::PURSE,
             day: date::first_of(4),
             note: String::new(),
+            journey: Journey::new(),
+            at: route::START,
+            to: route::START,
+            left: 0.0,
+            diary: Vec::new(),
+            prices: 1.0,
+            bought_here: Supplies::default(),
         }
     }
 
@@ -101,7 +139,14 @@ impl Game {
                 _ => {}
             },
             Screen::Store => self.store_key(key),
-            Screen::Trail | Screen::Quit => {}
+            Screen::Trail => self.trail_key(key),
+            Screen::Landmark => self.landmark_key(key),
+            Screen::Trade(offer) => self.trade_key(offer, key),
+            Screen::End => match key {
+                Key::Enter | Key::Esc | Key::Char('q') => self.go(Screen::Quit),
+                _ => {}
+            },
+            Screen::Quit => {}
         }
     }
 
@@ -142,8 +187,10 @@ impl Game {
             Key::Right | Key::Char('+') | Key::Char('=') if row < ITEMS.len() => self.buy(ITEMS[row]),
             Key::Left | Key::Char('-') if row < ITEMS.len() => self.sell_back(ITEMS[row]),
             Key::Enter if row < ITEMS.len() => self.buy(ITEMS[row]),
-            Key::Enter => self.leave_town(),
-            Key::Esc => self.go(Screen::Month),
+            Key::Enter if self.at == route::START => self.leave_town(),
+            Key::Enter => self.go(Screen::Landmark),
+            Key::Esc if self.at == route::START => self.go(Screen::Month),
+            Key::Esc => self.go(Screen::Landmark),
             _ => {}
         }
         if self.cursor != row || matches!(key, Key::Up | Key::Down) {
@@ -154,24 +201,31 @@ impl Game {
         }
     }
 
+    pub fn price(&self, item: Item) -> u32 {
+        (item.good().price as f64 * self.prices).round() as u32
+    }
+
     fn buy(&mut self, item: Item) {
         let g = item.good();
-        if self.money < g.price {
+        let price = self.price(item);
+        if self.money < price {
             self.note = "You cannot afford it.".into();
         } else if self.supplies.load() + g.per as f64 * g.weight > party::CAPACITY {
             self.note = "The wagon will not hold any more.".into();
         } else {
-            self.money -= g.price;
+            self.money -= price;
             self.supplies.add(item, g.per);
+            self.bought_here.add(item, g.per);
             self.note = g.advice.into();
         }
     }
 
     fn sell_back(&mut self, item: Item) {
         let g = item.good();
-        if self.supplies.get(item) >= g.per {
+        if self.bought_here.get(item) >= g.per {
+            self.bought_here.take(item, g.per);
             self.supplies.take(item, g.per);
-            self.money += g.price;
+            self.money += self.price(item);
         }
     }
 
@@ -185,11 +239,256 @@ impl Game {
             return;
         }
         info!("leaving Independence on {} with {:?}, {} left", date::format(self.day), self.supplies, party::money(self.money));
+        self.diary.push(format!("{}: Left Independence with {} oxen and {} lb of provisions.", date::format(self.day), self.supplies.get(Item::Oxen), self.supplies.get(Item::Food)));
+        self.set_out(route::START);
+    }
+
+    /// Head for the landmark after `from` (one with a single road on).
+    fn set_out(&mut self, from: usize) {
+        if let Next::On(to, miles) = ROUTE[from].next {
+            self.head_for(to, miles);
+        }
+    }
+
+    fn head_for(&mut self, to: usize, miles: f64) {
+        self.to = to;
+        self.left = miles;
+        self.journey.region = ROUTE[to].region;
         self.go(Screen::Trail);
+    }
+
+    pub fn alive(&self) -> usize {
+        self.party.iter().filter(|p| p.alive()).count()
+    }
+
+    fn trail_key(&mut self, key: Key) {
+        match key {
+            Key::Up => self.cursor = self.cursor.saturating_sub(1),
+            Key::Down => self.cursor = (self.cursor + 1).min(TRAIL_MENU.len() - 1),
+            Key::Char(c @ '1'..='9') => {
+                let i = c as usize - '1' as usize;
+                if i < TRAIL_MENU.len() {
+                    self.cursor = i;
+                    self.trail_choice(i);
+                }
+            }
+            Key::Enter => self.trail_choice(self.cursor),
+            _ => {}
+        }
+    }
+
+    fn trail_choice(&mut self, i: usize) {
+        match i {
+            0 => self.travel(),
+            1 => {
+                let from = self.day;
+                self.live_day(true);
+                self.diary.push(format!("{}: Rested a day.", date::format(from)));
+                self.after_days();
+            }
+            2 => {
+                self.journey.pace = self.journey.pace.next();
+                self.note = format!("The pace is now {}.", self.journey.pace.name());
+            }
+            3 => {
+                self.journey.rations = self.journey.rations.next();
+                self.note = format!("Rations are now {}.", self.journey.rations.name());
+            }
+            _ => self.look_for_trade(),
+        }
+    }
+
+    /// One day lived, travelling or resting; returns the day's miles.
+    fn live_day(&mut self, resting: bool) -> trail::Day {
+        let d = trail::day(&mut self.rng, &mut self.journey, self.day, &mut self.party, &mut self.supplies, resting);
+        self.day += 1;
+        for name in &d.died {
+            info!("{name} died on {}", date::format(self.day));
+        }
+        d
+    }
+
+    /// Travel on for up to a week, stopping at the next landmark or when
+    /// something happens that the party must deal with.
+    fn travel(&mut self) {
+        if self.supplies.get(Item::Oxen) < 2 {
+            self.note = "You have no team to pull the wagon.".into();
+            return;
+        }
+        let from = self.day;
+        let (mut miles, mut hungry, mut cold, mut died) = (0.0, false, false, Vec::new());
+        let mut arrived = false;
+        for _ in 0..7 {
+            let d = self.live_day(false);
+            miles += d.miles;
+            self.left -= d.miles;
+            hungry |= d.hungry;
+            cold |= d.cold;
+            let stop = !d.died.is_empty();
+            died.extend(d.died);
+            if self.left <= 0.0 {
+                // the last day's overshoot is the landmark's own ground
+                miles += self.left;
+                self.journey.miles += self.left;
+                self.left = 0.0;
+                arrived = true;
+                break;
+            }
+            if stop || self.alive() == 0 {
+                break;
+            }
+        }
+        let mut line = format!("{}: {:.0} miles, {}.", date::format(from), miles, self.journey.weather.describe());
+        if hungry {
+            line.push_str(" Not enough to eat.");
+        }
+        if cold {
+            line.push_str(" Cold without enough clothing.");
+        }
+        for name in &died {
+            line.push_str(&format!(" {name} has died."));
+        }
+        self.diary.push(line);
+        if arrived && self.alive() > 0 {
+            self.arrive();
+        } else {
+            self.after_days();
+        }
+    }
+
+    /// After days on the road: the end, if nobody is left.
+    fn after_days(&mut self) {
+        if self.alive() == 0 {
+            self.diary.push("There is no one left to go on.".into());
+            info!("all dead on {}", date::format(self.day));
+            self.go(Screen::End);
+        }
+    }
+
+    fn arrive(&mut self) {
+        self.at = self.to;
+        let l = &ROUTE[self.at];
+        info!("reached {} on {}, {:.0} miles", l.name, date::format(self.day), self.journey.miles);
+        self.diary.push(format!("{}: Reached {}.", date::format(self.day), l.name));
+        if l.kind == Kind::End {
+            self.go(Screen::End);
+        } else {
+            self.go(Screen::Landmark);
+        }
+    }
+
+    /// The choices at the landmark just reached.
+    pub fn landmark_choices(&self) -> Vec<String> {
+        let l = &ROUTE[self.at];
+        match (l.kind, l.next) {
+            (_, Next::Fork(roads)) => roads.iter().map(|r| r.0.to_string()).collect(),
+            (Kind::Fort(_), _) => vec!["Visit the trade room".into(), "Go on".into()],
+            (Kind::River { .. }, _) => vec!["Cross the river".into()],
+            _ => vec!["Go on".into()],
+        }
+    }
+
+    fn landmark_key(&mut self, key: Key) {
+        let n = self.landmark_choices().len();
+        match key {
+            Key::Up => self.cursor = self.cursor.saturating_sub(1),
+            Key::Down => self.cursor = (self.cursor + 1).min(n - 1),
+            Key::Enter => self.landmark_choice(self.cursor),
+            _ => {}
+        }
+    }
+
+    fn landmark_choice(&mut self, i: usize) {
+        let l = &ROUTE[self.at];
+        match (l.kind, l.next) {
+            (_, Next::Fork(roads)) => {
+                let (label, to, miles) = roads[i];
+                if label.contains("toll") {
+                    if self.money < 500 {
+                        self.note = "You cannot pay the toll.".into();
+                        return;
+                    }
+                    self.money -= 500;
+                }
+                self.diary.push(format!("{}: {}.", date::format(self.day), label));
+                self.head_for(to, miles);
+            }
+            (Kind::Fort(f), _) if i == 0 => {
+                self.prices = f;
+                self.bought_here = Supplies::default();
+                self.go(Screen::Store);
+                self.note = format!("Prices here are {:.1} times those in Independence.", f);
+            }
+            _ => self.set_out(self.at),
+        }
+    }
+
+    /// A day spent asking the other trains what they would trade.
+    fn look_for_trade(&mut self) {
+        self.live_day(true);
+        let wants = [Item::Oxen, Item::Food, Item::Clothing, Item::Shot, Item::Wheel, Item::Axle, Item::Tongue];
+        let give = *self.rng.pick(&wants);
+        let mut get = *self.rng.pick(&wants);
+        while get == give {
+            get = *self.rng.pick(&wants);
+        }
+        let amount = |item: Item, rng: &mut Rng| -> u32 {
+            match item {
+                Item::Oxen => 1,
+                Item::Food => rng.range(3, 10) as u32 * 10,
+                Item::Clothing => rng.range(1, 3) as u32,
+                Item::Shot => rng.range(1, 4) as u32 * 20,
+                _ => 1,
+            }
+        };
+        let offer = Offer { give: (give, amount(give, &mut self.rng)), get: (get, amount(get, &mut self.rng)) };
+        if self.rng.chance(0.25) {
+            self.diary.push(format!("{}: Nobody on the road had anything to trade.", date::format(self.day - 1)));
+            self.after_days();
+            return;
+        }
+        info!("trade offer {offer:?}");
+        self.go(Screen::Trade(offer));
+    }
+
+    fn trade_key(&mut self, offer: Offer, key: Key) {
+        match key {
+            Key::Char('y') | Key::Enter if self.cursor == 0 || key == Key::Char('y') => {
+                let (item, n) = offer.give;
+                if self.supplies.get(item) < n {
+                    self.note = "You do not have enough to trade.".into();
+                    return;
+                }
+                self.supplies.take(item, n);
+                self.supplies.add(offer.get.0, offer.get.1);
+                self.diary.push(format!("{}: Traded {} for {}.", date::format(self.day - 1), amount_of(offer.give), amount_of(offer.get)));
+                self.go(Screen::Trail);
+            }
+            Key::Char('n') | Key::Enter | Key::Esc => self.go(Screen::Trail),
+            Key::Up | Key::Down => self.cursor = 1 - self.cursor.min(1),
+            _ => {}
+        }
+    }
+
+    pub fn next_landmark(&self) -> &'static str {
+        ROUTE[self.to].name
     }
 
     pub fn done(&self) -> bool {
         self.screen == Screen::Quit
+    }
+}
+
+/// "3 oxen", "40 lb of provisions", in words.
+pub fn amount_of((item, n): (Item, u32)) -> String {
+    match item {
+        Item::Oxen => format!("{n} {}", if n == 1 { "ox" } else { "oxen" }),
+        Item::Food => format!("{n} lb of provisions"),
+        Item::Clothing => format!("{n} {}", if n == 1 { "set of clothing" } else { "sets of clothing" }),
+        Item::Shot => format!("{n} rounds of shot"),
+        Item::Wheel => format!("{n} spare {}", if n == 1 { "wheel" } else { "wheels" }),
+        Item::Axle => format!("{n} spare {}", if n == 1 { "axle" } else { "axles" }),
+        Item::Tongue => format!("{n} spare {}", if n == 1 { "tongue" } else { "tongues" }),
     }
 }
 
@@ -249,5 +548,41 @@ mod tests {
             g.key(Key::Right);
         }
         assert!(g.money < Item::Oxen.good().price);
+    }
+
+    /// Outfit sensibly, then always go on; the journey must end either way.
+    pub fn bot(seed: u64) -> Game {
+        let mut g = play(seed, ">>>>>>>");
+        for (row, n) in [(0, 3), (1, 20), (2, 10), (3, 5), (4, 1), (5, 1), (6, 1)] {
+            g.cursor = row;
+            for _ in 0..n {
+                g.key(Key::Right);
+            }
+        }
+        g.cursor = ITEMS.len();
+        g.key(Key::Enter);
+        for _ in 0..2000 {
+            match g.screen {
+                Screen::Trail => g.trail_choice(0),
+                Screen::Landmark => {
+                    let n = g.landmark_choices().len();
+                    let pick = if matches!(ROUTE[g.at].kind, Kind::Fort(_)) { n - 1 } else { 0 };
+                    g.landmark_choice(pick);
+                }
+                Screen::Trade(_) => g.key(Key::Char('n')),
+                Screen::End => break,
+                ref s => panic!("bot stuck on {s:?}"),
+            }
+        }
+        g
+    }
+
+    #[test]
+    fn a_journey_ends() {
+        for seed in 0..20 {
+            let g = bot(seed);
+            assert_eq!(g.screen, Screen::End, "seed {seed}");
+            eprintln!("seed {seed}: {} alive, {:.0} miles, {}", g.alive(), g.journey.miles, date::format(g.day));
+        }
     }
 }

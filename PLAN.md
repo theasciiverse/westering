@@ -34,11 +34,11 @@ Rules for the night:
   Missouri, spring 1848: oxen (yokes), flour and bacon (lb), clothing
   sets, powder and shot, spare wheels, axles, tongues. Pick the departure
   month (March to July) with its trade-off.
-- [ ] 3. The trail loop: days pass, miles covered by pace (steady,
+- [x] 3. The trail loop: days pass, miles covered by pace (steady,
   hard, grueling) and oxen health; rations (filling, meager, bare) use
   food; health per person; weather by month and region; a status panel
   (date, weather, health, food, next landmark, miles). Rest a day; trade.
-- [ ] 4. The real route: landmarks with true mileages from Independence
+- [x] 4. The real route: landmarks with true mileages from Independence
   (about 2,000 miles to the Willamette): Kansas River crossing, Big Blue
   River, Fort Kearny, Ash Hollow, Courthouse and Chimney Rock, Scotts Bluff,
   Fort Laramie, Independence Rock, South Pass, Fort Bridger (or the
@@ -78,3 +78,4 @@ Rules for the night:
 
 - M1 done: crate, title screen, `--script`/`--seed` headless mode, SplitMix64 RNG with a test.
 - M2 done: naming the party (random 1840s defaults), departure month March to July, the Independence store with purse ($800) and a 2,000 lb wagon. Flour and bacon became one item, Provisions, to keep the store short.
+- M3 and M4 done together (the trail needs the route): pace, rations, health, oxen, weather by month and region, travel a week at a time stopping at landmarks, rest, trade offers; 25 landmarks with both forks (Sublette Cutoff or Fort Bridger; Barlow Road or the Columbia), fort trade rooms at 1.4 to 2.2 times Independence prices. Mileages are rounded figures; checked against Wikipedia's Route of the Oregon Trail where it gives them (Fort Bridger to Fort Hall about 210, ours 230; Three Island Crossing to Fort Boise about 130, ours 125; Sublette Cutoff saves about 70, ours 70); totals 1,820 to 1,950 miles, matching "not quite 2,000" (historicoregoncity.org). Rivers are crossed without risk until M6. A bot that never restocks starves around mile 890 in mid-June: hunting and fort shopping are meant to fix that (M8, M9).

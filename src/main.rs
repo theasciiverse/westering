@@ -14,6 +14,8 @@ mod date;
 mod game;
 mod party;
 mod rng;
+mod route;
+mod trail;
 mod ui;
 
 use game::{Game, Key};

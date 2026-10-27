@@ -2,7 +2,10 @@
 //! laid out like a teletype page in a column about 72 wide.
 
 use crate::date;
-use crate::game::{Game, PARTY, Screen};
+use crate::game::{self, Game, PARTY, Screen, TRAIL_MENU};
+use crate::party::Item;
+use crate::route::ROUTE;
+use crate::trail;
 use crate::party::{self, ITEMS};
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -30,6 +33,9 @@ pub fn draw(f: &mut Frame, game: &Game) {
         Screen::Month => month(f, page, game),
         Screen::Store => store(f, page, game),
         Screen::Trail => trail(f, page, game),
+        Screen::Landmark => landmark(f, page, game),
+        Screen::Trade(offer) => trade(f, page, game, *offer),
+        Screen::End => end(f, page, game),
         Screen::Quit => {}
     }
 }
@@ -128,7 +134,10 @@ fn month(f: &mut Frame, page: Rect, game: &Game) {
 
 fn store(f: &mut Frame, page: Rect, game: &Game) {
     let mut body = vec![
-        Line::from(vec![Span::raw("Matthiessen's General Store, Independence. "), dim(date::format(game.day))]),
+        Line::from(vec![
+            Span::raw(if game.at == 0 { "Matthiessen's General Store, Independence. ".to_string() } else { format!("The trade room at {}. ", ROUTE[game.at].name) }),
+            dim(date::format(game.day)),
+        ]),
         Line::default(),
         Line::from(dim(format!("  {:<18}{:>9}  {:<18}{:>9}", "", "you have", "sold by the", "price"))),
     ];
@@ -139,11 +148,11 @@ fn store(f: &mut Frame, page: Rect, game: &Game) {
             bold(format!("{:<18}", g.name)),
             Span::raw(format!("{:>9}", game.supplies.get(item))),
             dim(format!("  {:<18}", g.unit)),
-            Span::raw(format!("{:>9}", party::money(g.price))),
+            Span::raw(format!("{:>9}", party::money(game.price(item)))),
         ]));
     }
     body.push(Line::default());
-    body.push(Line::from(vec![pointer(game.cursor == ITEMS.len()), bold("Leave Independence")]));
+    body.push(Line::from(vec![pointer(game.cursor == ITEMS.len()), bold(if game.at == 0 { "Leave Independence" } else { "Done trading" })]));
     body.push(Line::default());
     let load = game.supplies.load();
     body.push(Line::from(vec![
@@ -155,8 +164,105 @@ fn store(f: &mut Frame, page: Rect, game: &Game) {
     page_with(f, page, "Outfitting", body, &game.note, keys(&[("Right +", "buy"), ("Left -", "put back"), ("Up Down", "choose"), ("Esc", "back")]));
 }
 
+/// The wagon's state, the head of every trail page.
+fn status(game: &Game) -> Vec<Line<'static>> {
+    let j = &game.journey;
+    let row = |a: String, b: String| Line::from(vec![Span::raw(format!("{a:<36}")), Span::raw(b)]);
+    vec![
+        Line::from(vec![bold(format!("{:<36}", date::format(game.day))), Span::raw(format!("Weather: {}", j.weather.describe()))]),
+        row(format!("Health: {}", trail::health_word(&game.party)), format!("Pace: {}   Rations: {}", j.pace.name(), j.rations.name())),
+        row(format!("Provisions: {} lb", game.supplies.get(Item::Food)), format!("Oxen: {}, {}", game.supplies.get(Item::Oxen), trail::oxen_word(j.oxen_health))),
+        row(format!("Next: {}, {:.0} mi", game.next_landmark(), game.left.max(0.0)), format!("Travelled: {:.0} miles", j.miles)),
+    ]
+}
+
+/// The newest diary lines that fit in `rows`, wrapped to the page.
+fn diary(game: &Game, rows: usize, width: usize) -> Vec<Line<'static>> {
+    let mut lines: Vec<Line> = Vec::new();
+    for entry in game.diary.iter().rev() {
+        let wrapped = wrap(entry, width);
+        if lines.len() + wrapped.len() > rows {
+            break;
+        }
+        for l in wrapped.into_iter().rev() {
+            lines.insert(0, Line::from(l).style(Style::new().fg(DARK)));
+        }
+    }
+    lines
+}
+
+/// Plain word wrap.
+pub fn wrap(text: &str, width: usize) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut line = String::new();
+    for word in text.split_whitespace() {
+        if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > width {
+            out.push(std::mem::take(&mut line));
+        }
+        if !line.is_empty() {
+            line.push(' ');
+        }
+        line.push_str(word);
+    }
+    if !line.is_empty() {
+        out.push(line);
+    }
+    out
+}
+
 fn trail(f: &mut Frame, page: Rect, game: &Game) {
-    let names: Vec<&str> = game.party.iter().map(|p| p.name.as_str()).collect();
-    let body = vec![Line::from(format!("{} leave Independence on {}.", names.join(", "), date::format(game.day)))];
-    page_with(f, page, "The trail", body, "", keys(&[("Ctrl-C", "quit")]));
+    let mut body = status(game);
+    body.push(Line::default());
+    let menu: Vec<Line> = TRAIL_MENU
+        .iter()
+        .enumerate()
+        .map(|(i, m)| Line::from(vec![pointer(i == game.cursor), amber(format!("{} ", i + 1)), bold(*m)]))
+        .collect();
+    let rows = (page.height as usize).saturating_sub(3 + body.len() + 1 + menu.len() + 4);
+    body.extend(diary(game, rows, page.width as usize));
+    body.push(Line::default());
+    body.extend(menu);
+    page_with(f, page, "On the trail", body, &game.note, keys(&[("Up Down", "choose"), ("Enter", "do it"), ("1-5", "at once")]));
+}
+
+fn landmark(f: &mut Frame, page: Rect, game: &Game) {
+    let l = &ROUTE[game.at];
+    let mut body = status(game);
+    body.push(Line::default());
+    body.push(Line::from(bold(l.name)));
+    body.push(Line::default());
+    for w in wrap(l.note, page.width as usize) {
+        body.push(Line::from(w));
+    }
+    body.push(Line::default());
+    for (i, c) in game.landmark_choices().iter().enumerate() {
+        body.push(Line::from(vec![pointer(i == game.cursor), bold(c.clone())]));
+    }
+    page_with(f, page, l.name, body, &game.note, keys(&[("Up Down", "choose"), ("Enter", "do it")]));
+}
+
+fn trade(f: &mut Frame, page: Rect, game: &Game, offer: game::Offer) {
+    let mut body = status(game);
+    body.push(Line::default());
+    let text = format!(
+        "A family from another train will give you {} for {}. You have {}.",
+        game::amount_of(offer.get),
+        game::amount_of(offer.give),
+        game::amount_of((offer.give.0, game.supplies.get(offer.give.0)))
+    );
+    for w in wrap(&text, page.width as usize) {
+        body.push(Line::from(w));
+    }
+    body.push(Line::default());
+    body.push(Line::from(vec![pointer(game.cursor == 0), bold("Accept")]));
+    body.push(Line::from(vec![pointer(game.cursor == 1), bold("Decline")]));
+    page_with(f, page, "A trade", body, &game.note, keys(&[("y", "accept"), ("n", "decline")]));
+}
+
+fn end(f: &mut Frame, page: Rect, game: &Game) {
+    let mut body = status(game);
+    body.push(Line::default());
+    let rows = (page.height as usize).saturating_sub(3 + body.len() + 4);
+    body.extend(diary(game, rows, page.width as usize));
+    page_with(f, page, "The end of the trail", body, "", keys(&[("Enter", "quit")]));
 }
