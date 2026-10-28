@@ -28,9 +28,6 @@ av install westering
 av play westering
 ```
 
-Or download the archive for your system from this repository's Releases,
-unpack it and run `./westering`.
-
 ## Controls
 
 Arrow keys to choose, Enter to do it, Esc to go back. On the trail the
