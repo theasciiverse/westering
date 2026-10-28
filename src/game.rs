@@ -96,6 +96,8 @@ pub struct Game {
     pub on_foot: bool,
     /// miles from Independence of each landmark reached
     pub passed: Vec<f64>,
+    /// Esc on the trail page: asking whether to leave the journey
+    pub leaving: bool,
 }
 
 impl Game {
@@ -132,6 +134,7 @@ impl Game {
             hunted: 0,
             on_foot: false,
             passed: Vec::new(),
+            leaving: false,
         }
     }
 
@@ -140,6 +143,7 @@ impl Game {
         self.screen = screen;
         self.cursor = 0;
         self.note.clear();
+        self.leaving = false;
     }
 
     pub fn key(&mut self, key: Key) {
@@ -224,7 +228,7 @@ impl Game {
             Key::Esc => self.go(Screen::Landmark),
             _ => {}
         }
-        if self.cursor != row || matches!(key, Key::Up | Key::Down) {
+        if self.screen == Screen::Store && (self.cursor != row || matches!(key, Key::Up | Key::Down)) {
             self.note = match ITEMS.get(self.cursor) {
                 Some(i) => i.good().advice.into(),
                 None => "When you are ready, the trail is waiting.".into(),
@@ -295,7 +299,19 @@ impl Game {
     }
 
     fn trail_key(&mut self, key: Key) {
+        if self.leaving {
+            match key {
+                Key::Char('y') => {
+                    info!("left the trail on {} at mile {:.0}", date::format(self.day), self.journey.miles);
+                    self.go(Screen::Quit);
+                }
+                Key::Char('n') | Key::Esc => self.leaving = false,
+                _ => {}
+            }
+            return;
+        }
         match key {
+            Key::Esc => self.leaving = true,
             Key::Up => self.cursor = self.cursor.saturating_sub(1),
             Key::Down => self.cursor = (self.cursor + 1).min(TRAIL_MENU.len() - 1),
             Key::Char(c @ '1'..='9') => {
@@ -843,6 +859,25 @@ mod tests {
             g.key(Key::Right);
         }
         assert!(g.money < Item::Oxen.good().price);
+    }
+
+    #[test]
+    fn esc_on_the_trail_asks_first() {
+        let mut g = play(3, ">>>>>>>");
+        g.supplies.set(Item::Oxen, 6);
+        g.supplies.set(Item::Food, 800);
+        g.cursor = Game::STORE_ROWS - 1;
+        g.key(Key::Enter);
+        assert_eq!(g.screen, Screen::Trail);
+        g.key(Key::Esc);
+        assert!(g.leaving);
+        g.key(Key::Enter);
+        assert_eq!(g.screen, Screen::Trail, "Enter is not a yes");
+        g.key(Key::Esc);
+        assert!(!g.leaving, "a second Esc stays");
+        g.key(Key::Esc);
+        g.key(Key::Char('y'));
+        assert!(g.done());
     }
 
     #[test]

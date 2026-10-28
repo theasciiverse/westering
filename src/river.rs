@@ -161,7 +161,7 @@ mod tests {
     #[test]
     fn deep_fords_are_dangerous_and_ferries_safe() {
         let trials = 2000;
-        let mut count = |way: Way, depth: f64| -> usize {
+        let count = |way: Way, depth: f64| -> usize {
             let mut bad = 0;
             for seed in 0..trials {
                 let mut rng = Rng::new(seed);

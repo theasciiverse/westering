@@ -34,7 +34,8 @@ unpack it and run `./westering`.
 ## Controls
 
 Arrow keys to choose, Enter to do it, Esc to go back. On the trail the
-number keys pick from the menu at once. In the store, Right or `+` buys and
+number keys pick from the menu at once, and Esc asks whether to leave the
+journey (`y` leaves, `n` stays). In the store, Right or `+` buys and
 Left or `-` puts back.
 
 ## Credits

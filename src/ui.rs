@@ -258,7 +258,14 @@ fn trail(f: &mut Frame, page: Rect, game: &Game) {
     body.extend(diary(game, rows, page.width as usize));
     body.push(Line::default());
     body.extend(menu);
-    page_with(f, page, "On the trail", body, &game.note, keys(&[("Up Down", "choose"), ("Enter", "do it"), ("1-6", "at once")]));
+    let help = if game.leaving {
+        let mut ask = keys(&[("y", "leave"), ("n", "stay")]);
+        ask.spans.insert(0, Span::styled("Leave the trail? This journey will be lost.   ", Style::new().fg(RED)));
+        ask
+    } else {
+        keys(&[("Up Down", "choose"), ("Enter", "do it"), ("1-6", "at once"), ("Esc", "leave")])
+    };
+    page_with(f, page, "On the trail", body, &game.note, help);
 }
 
 fn landmark(f: &mut Frame, page: Rect, game: &Game) {
