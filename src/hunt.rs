@@ -1,12 +1,13 @@
 //! A day's hunting: what is about in this country and season, what it costs
-//! in powder and shot, and what one person can carry back to the wagon.
+//! in powder and shot, and what the party can carry back to the wagon.
 
 use crate::date;
 use crate::rng::Rng;
 use crate::trail::Region;
 
-/// The most meat a hunter can carry back to camp in a day.
-pub const CARRY: u32 = 100;
+/// The meat one person fit to walk carries back to camp; the rest of a big
+/// animal is left on the ground.
+pub const CARRY_EACH: u32 = 40;
 /// Rounds a hunt needs at the least.
 pub const SHOT_NEEDED: u32 = 10;
 
@@ -47,8 +48,10 @@ pub struct Hunt {
 }
 
 /// Go hunting. `hunted` is how many days the party has already hunted on this
-/// stretch of road: the game learns to keep away.
-pub fn hunt(rng: &mut Rng, region: Region, day: u32, hunted: u32, shot: u32) -> Hunt {
+/// stretch of road: the game learns to keep away. `hands` is how many are fit
+/// to carry meat back.
+pub fn hunt(rng: &mut Rng, region: Region, day: u32, hunted: u32, shot: u32, hands: u32) -> Hunt {
+    let carry = CARRY_EACH * hands.max(1);
     let used = (rng.range(10, 30) as u32).min(shot);
     let wary = 0.8f64.powi(hunted as i32);
     let found = about(region, day);
@@ -65,9 +68,9 @@ pub fn hunt(rng: &mut Rng, region: Region, day: u32, hunted: u32, shot: u32) -> 
     if !rng.chance(g.hit) {
         return Hunt { text: format!("You got close to {} and missed. It was gone before you could load again.", g.name), meat: 0, shot: used };
     }
-    let meat = g.meat.min(CARRY);
-    let text = if g.meat > CARRY {
-        format!("You brought down {}: {} lb of meat, but you could carry only {CARRY} lb back to the wagon.", g.name, g.meat)
+    let meat = g.meat.min(carry);
+    let text = if g.meat > carry {
+        format!("You brought down {}: {} lb of meat, but between you, you could carry only {carry} lb back to the wagon.", g.name, g.meat)
     } else {
         format!("You brought down {}: {meat} lb of meat.", g.name)
     };
@@ -80,11 +83,13 @@ mod tests {
 
     #[test]
     fn the_plains_feed_hunters_in_summer_and_the_desert_does_not() {
-        let total = |region: Region| -> u32 { (0..500).map(|s| hunt(&mut Rng::new(s), region, date::first_of(6), 0, 100).meat).sum() };
+        let total = |region: Region| -> u32 { (0..500).map(|s| hunt(&mut Rng::new(s), region, date::first_of(6), 0, 100, 5).meat).sum() };
         let plains = total(Region::HighPlains);
         let desert = total(Region::SnakeDesert);
         assert!(plains > desert * 4, "{plains} {desert}");
-        let h = hunt(&mut Rng::new(1), Region::HighPlains, date::first_of(6), 0, 100);
-        assert!(h.meat <= CARRY && h.shot <= 30);
+        for s in 0..50 {
+            let h = hunt(&mut Rng::new(s), Region::HighPlains, date::first_of(6), 0, 100, 2);
+            assert!(h.meat <= 2 * CARRY_EACH && h.shot <= 30);
+        }
     }
 }

@@ -137,7 +137,7 @@ fn month(f: &mut Frame, page: Rect, game: &Game) {
 fn store(f: &mut Frame, page: Rect, game: &Game) {
     let mut body = vec![
         Line::from(vec![
-            Span::raw(if game.at == 0 { "Matthiessen's General Store, Independence. ".to_string() } else { format!("The trade room at {}. ", ROUTE[game.at].name) }),
+            Span::raw(if game.at == 0 { "Ebbert and Sons, Outfitters, Independence. ".to_string() } else { format!("The trade room at {}. ", ROUTE[game.at].name) }),
             dim(date::format(game.day)),
         ]),
         Line::default(),

@@ -378,7 +378,8 @@ impl Game {
             return;
         }
         let from = self.day;
-        let h = hunt::hunt(&mut self.rng, self.journey.region, self.day, self.hunted, shot);
+        let hands = self.party.iter().filter(|p| p.alive() && p.illness.is_none()).count() as u32;
+        let h = hunt::hunt(&mut self.rng, self.journey.region, self.day, self.hunted, shot, hands);
         self.hunted += 1;
         self.supplies.take(Item::Shot, h.shot);
         self.supplies.add(Item::Food, h.meat);
