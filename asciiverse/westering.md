@@ -23,5 +23,6 @@ you meet. Every grave you leave behind gets the words you give it.
 ## Controls
 
 - Arrow keys to choose, Enter to do it, Esc to go back
-- On the trail, the number keys pick from the menu at once
+- On the trail, the number keys pick from the menu at once, and Esc asks
+  before you leave the journey
 - In the store, Right or `+` buys and Left or `-` puts back
