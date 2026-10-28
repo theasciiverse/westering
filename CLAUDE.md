@@ -38,9 +38,11 @@ env_logger.
 ## Name
 
 **Westering** is a working name, not chosen yet: the 19th-century word for
-the pull and the act of going west. Collision check, 2026-10-27: one web
-search found no game called Westering; Steam, itch.io and crates.io not
-checked yet.
+the pull and the act of going west. Collision check: one web search on
+2026-10-27 found no game called Westering; on 2026-10-28 Steam's store
+search returned nothing for it, itch.io's search had no title containing
+the word, and crates.io has no crate `westering`. Trademark registers not
+searched.
 
 ## Rights: why our own game, not a port
 
@@ -75,7 +77,8 @@ Trail once it is playable.
 
 ## Open
 
-The name (Steam, itch.io and crates.io not checked); the art (plain text
+The name, if a better one comes along (free on Steam, itch.io and
+crates.io, 2026-10-28); the art (plain text
 now, half-block landmark scenes considered); an action hunting scene; the
 first release build (GitHub billing), then the repo made public so `av` can
 download it.
