@@ -14,6 +14,7 @@ Oregon Trail in Asciiverse?" (see Rights). Repo theasciiverse/westering
 kept in step with `asciiverse/`), with its cast and a link from 1971 on the
 website's history page. v0.1.0 is tagged, but its release build has not
 run: GitHub refused the jobs over the account's billing.
+Version 0.5.0 (2026-10-28). What comes next, release by release, is in `ROADMAP.md`.
 
 ## Code
 
