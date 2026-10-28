@@ -9,9 +9,11 @@ arriving. Rust + Ratatui, our own code, writing and art.
 **Status:** playable start to finish, built overnight 2026-10-27 by Claude
 in a loop while David slept (`PLAN.md` has the milestones and the log). Put
 on the roster by David, 2026-10-27, as the answer to "can we offer The
-Oregon Trail in Asciiverse?" (see Rights). Local git repo only; no GitHub
-repo, release or cast yet. A draft hub manifest and page are in
-`asciiverse/` for David to review before they go to `hub/catalog/`.
+Oregon Trail in Asciiverse?" (see Rights). Repo theasciiverse/westering
+(private); in the catalog since 2026-10-28 (`hub/catalog/westering.toml`,
+kept in step with `asciiverse/`), with its cast and a link from 1971 on the
+website's history page. v0.1.0 is tagged, but its release build has not
+run: GitHub refused the jobs over the account's billing.
 
 ## Code
 
@@ -75,4 +77,5 @@ Trail once it is playable.
 
 The name (Steam, itch.io and crates.io not checked); the art (plain text
 now, half-block landmark scenes considered); an action hunting scene; the
-cast recording; the GitHub repo and first release.
+first release build (GitHub billing), then the repo made public so `av` can
+download it.
