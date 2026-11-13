@@ -16,7 +16,8 @@ name = "Asciiverse"
 url = "https://asciiverse.sh"
 
 # the archive holds westering, README.md and LICENSE; a journey under way
-# is kept in $XDG_STATE_HOME/westering/journey.txt
+# is kept in $XDG_STATE_HOME/westering/journey.txt, the register of
+# journeys made in journeys.txt beside it
 [exec]
 game = "westering"
 args = []

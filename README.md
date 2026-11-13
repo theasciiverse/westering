@@ -14,6 +14,7 @@ downwind with the light going, and trade with the trains you meet. Ford, float o
 Cutoff or Fort Bridger, the Barlow Road or the Columbia's rapids. Sickness,
 broken axles, strayed oxen, hail and bad water come as they came on the
 real trail, and every grave you leave behind gets the words you give it.
+A register keeps the journeys you have made and the best of them.
 
 Twenty-five landmarks of the 1848 road, from Chimney Rock and Independence
 Rock to South Pass and Fort Hall, each drawn in half blocks with a note on

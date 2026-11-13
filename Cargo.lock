@@ -1774,7 +1774,7 @@ dependencies = [
 
 [[package]]
 name = "westering"
-version = "0.7.1"
+version = "1.0.0"
 dependencies = [
  "env_logger",
  "log",

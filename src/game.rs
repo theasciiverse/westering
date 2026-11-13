@@ -113,6 +113,8 @@ pub struct Game {
     pub can_resume: bool,
     /// the hunting scene under way
     pub stalk: Option<crate::stalk::Stalk>,
+    /// the journeys made before this one, from the register
+    pub records: Vec<crate::save::Record>,
 }
 
 impl Game {
@@ -154,6 +156,7 @@ impl Game {
             stretch: 0,
             can_resume: false,
             stalk: None,
+            records: Vec::new(),
         }
     }
 
@@ -211,7 +214,10 @@ impl Game {
             Screen::End => match key {
                 Key::Enter | Key::Char('y') => {
                     let seed = self.rng.next();
+                    let mut records = std::mem::take(&mut self.records);
+                    records.push(crate::save::Record::of(self));
                     *self = Game::new(seed);
+                    self.records = records;
                 }
                 Key::Esc | Key::Char('q') | Key::Char('n') => self.go(Screen::Quit),
                 _ => {}
@@ -965,7 +971,7 @@ fn default_epitaph(p: &Person, rng: &mut Rng) -> String {
     ];
     match p.cause.as_deref() {
         Some("drowning") => "Taken by the river. Rest where it is quiet.".into(),
-        Some("hunger") => (*rng.pick(&["We had not enough. Forgive us.", "Gave the last of the bread to the children.", "Hungry no more."])).into(),
+        Some("hunger") => (*rng.pick(&["We had not enough. Forgive us.", "Gave the last of the bread to the others.", "Hungry no more."])).into(),
         _ => (*rng.pick(&lines)).into(),
     }
 }

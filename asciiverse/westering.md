@@ -8,7 +8,8 @@ parts for a wagon that will break.
 
 Then the road. Set the pace and the rations, rest when someone is failing,
 stalk buffalo on the plains and elk in the mountains, creeping up from
-downwind with the light going, and trade with the trains you meet. Every grave you leave behind gets the words you give it.
+downwind with the light going, and trade with the trains you meet. Every grave you leave behind gets the words you give it, and a
+register keeps the journeys you have made and the best of them.
 
 ## The road
 

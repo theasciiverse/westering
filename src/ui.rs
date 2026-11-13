@@ -80,7 +80,8 @@ fn title(f: &mut Frame, page: Rect, game: &Game) {
     lines.push(Line::from("Two thousand miles of prairie, desert and mountain lie between you").centered());
     lines.push(Line::from("and the Willamette Valley. Every wagon that sets out is a wager.").centered());
     lines.push(Line::default());
-    let pic = (page.height as usize).saturating_sub(lines.len() + 4).min(8);
+    let register = register_line(game);
+    let pic = (page.height as usize).saturating_sub(lines.len() + 4 + if register.is_some() { 2 } else { 0 }).min(8);
     if pic >= 4 {
         lines.extend(pix::title(page.width as usize, pic).lines());
     }
@@ -90,7 +91,24 @@ fn title(f: &mut Frame, page: Rect, game: &Game) {
     } else {
         lines.push(Line::from(vec![amber("Enter"), Span::raw(" set out    "), amber("Esc"), Span::raw(" quit")]).centered());
     }
+    if let Some(r) = register {
+        lines.push(Line::default());
+        lines.push(Line::from(dim(r)).centered());
+    }
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), page);
+}
+
+/// The register of journeys in a line: how many, and the best.
+fn register_line(game: &Game) -> Option<String> {
+    let n = game.records.len();
+    let arrived = game.records.iter().filter(|r| r.arrived).count();
+    let best = game.records.iter().filter(|r| r.arrived).max_by_key(|r| r.score);
+    let made = format!("{n} {} made, {arrived} to Oregon", if n == 1 { "journey" } else { "journeys" });
+    match best {
+        _ if n == 0 => None,
+        Some(b) => Some(format!("{made}. The best: {}'s party, {} of {}, score {}.", b.leader, b.alive, PARTY, b.score)),
+        None => Some(format!("{made}.")),
+    }
 }
 
 /// A page: a heading, the body lines, then the note and the key help at
@@ -459,13 +477,19 @@ fn end(f: &mut Frame, page: Rect, game: &Game) {
         body.push(Line::from(amber("Graves along the trail")));
         for p in graves {
             let text = format!("{}, died of {}, {}.", p.name, p.cause.as_deref().unwrap_or("the trail"), p.grave.as_deref().unwrap_or("on the trail"));
-            body.extend(wrap(&text, w).into_iter().map(|l| Line::from(format!("  {l}"))));
+            body.extend(wrap(&text, w.saturating_sub(4)).into_iter().enumerate().map(|(i, l)| Line::from(format!("{}{l}", if i == 0 { "  " } else { "    " }))));
             if let Some(e) = p.epitaph.as_deref().filter(|e| !e.is_empty()) {
                 body.push(Line::from(dim(format!("    \"{e}\""))));
             }
         }
     }
-    page_with(f, page, heading, body, "", keys(&[("Enter", "play again"), ("Esc", "quit")]));
+    let best = game.records.iter().filter(|r| r.arrived).max_by_key(|r| r.score);
+    let note = match best {
+        Some(b) if game.arrived() && game.score().iter().map(|s| s.1).sum::<i64>() > b.score => "The best journey yet in the register.".to_string(),
+        Some(b) => format!("The best before this one: {}'s party, {} of {}, score {}.", b.leader, b.alive, PARTY, b.score),
+        None => String::new(),
+    };
+    page_with(f, page, heading, body, &note, keys(&[("Enter", "play again"), ("Esc", "quit")]));
 }
 
 fn hunt_choice(f: &mut Frame, page: Rect, game: &Game) {

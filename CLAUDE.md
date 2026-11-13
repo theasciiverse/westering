@@ -12,8 +12,8 @@ on the roster by David, 2026-10-27, as the answer to "can we offer The
 Oregon Trail in Asciiverse?" (see Rights). Repo theasciiverse/westering
 (public); in the catalog since 2026-10-28 (`hub/catalog/westering.toml`,
 kept in step with `asciiverse/`), with its cast and a link from 1971 on the
-website's history page. Released from v0.5.0 on. Version 0.7.0
-(2026-11-14, art and hunting). What comes next, release by release, is in `ROADMAP.md`.
+website's history page. Released from v0.5.0 on. Version 1.0.0
+(2026-11-14): everything in `ROADMAP.md` is in. What comes next, release by release, is in `ROADMAP.md`.
 
 ## Code
 
@@ -36,7 +36,8 @@ env_logger.
   `westering --pictures` prints every landmark's picture in colour
 - `stalk.rs`: the hunting scene on foot, in ticks (five a second in the
   terminal loop, `~` in a script); the quick text hunt stays in `hunt.rs`
-- `save.rs`: the journey kept in `$XDG_STATE_HOME/westering/journey.txt`
+- `save.rs`: the register of journeys made (`journeys.txt`, shown on the
+  title page and at the end) and the journey kept in `$XDG_STATE_HOME/westering/journey.txt`
   (on Windows `%LOCALAPPDATA%`), written at every trail and landmark page,
   removed when the journey ends; none under `cfg(test)`
 - `RUST_LOG=debug westering 2>westering.log` logs keys, screens, events and
@@ -46,8 +47,9 @@ env_logger.
 
 ## Name
 
-**Westering** is a working name, not chosen yet: the 19th-century word for
-the pull and the act of going west. Collision check: one web search on
+**Westering**, the 19th-century word for the pull and the act of going
+west. Kept for 1.0.0 (2026-11-14) as the conservative choice, made
+overnight without David; a rename stays his call. Collision check: one web search on
 2026-10-27 found no game called Westering; on 2026-10-28 Steam's store
 search returned nothing for it, itch.io's search had no title containing
 the word, and crates.io has no crate `westering`. Trademark registers not
@@ -86,5 +88,5 @@ Trail once it is playable.
 
 ## Open
 
-The name, if a better one comes along (free on Steam, itch.io and
-crates.io, 2026-10-28); David's own play-through.
+David's own play-through, and a rename if he wants one (Westering is free
+on Steam, itch.io and crates.io, 2026-10-28).

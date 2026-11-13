@@ -101,6 +101,66 @@ pub fn to_text(g: &Game) -> String {
     out.join("\n") + "\n"
 }
 
+/// A journey made, for the register of journeys kept in the state folder.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Record {
+    pub leader: String,
+    pub alive: usize,
+    pub score: i64,
+    /// the day it ended, arrived or not
+    pub day: u32,
+    pub miles: u32,
+    pub arrived: bool,
+}
+
+impl Record {
+    pub fn of(g: &Game) -> Record {
+        Record {
+            leader: g.party[0].name.clone(),
+            alive: g.alive(),
+            score: g.score().iter().map(|s| s.1).sum(),
+            day: g.day,
+            miles: g.journey.miles.round() as u32,
+            arrived: g.arrived(),
+        }
+    }
+
+    fn line(&self) -> String {
+        format!("{}\t{}\t{}\t{}\t{}\t{}", self.arrived as u8, self.alive, self.score, self.day, self.miles, self.leader)
+    }
+
+    fn read(line: &str) -> Option<Record> {
+        let f: Vec<&str> = line.split('\t').collect();
+        if f.len() != 6 {
+            return None;
+        }
+        Some(Record { arrived: f[0] == "1", alive: f[1].parse().ok()?, score: f[2].parse().ok()?, day: f[3].parse().ok()?, miles: f[4].parse().ok()?, leader: f[5].to_string() })
+    }
+}
+
+fn register_file() -> Option<PathBuf> {
+    dir().map(|d| d.join("journeys.txt"))
+}
+
+/// The journeys made before, oldest first.
+pub fn records() -> Vec<Record> {
+    let Some(text) = register_file().and_then(|p| std::fs::read_to_string(p).ok()) else { return Vec::new() };
+    text.lines().filter_map(Record::read).collect()
+}
+
+/// Write a finished journey into the register.
+pub fn record(r: &Record) {
+    let Some(path) = register_file() else { return };
+    use std::io::Write;
+    let result = std::fs::create_dir_all(path.parent().unwrap_or(&path))
+        .and_then(|_| std::fs::OpenOptions::new().create(true).append(true).open(&path))
+        .and_then(|mut f| writeln!(f, "{}", r.line()));
+    match result {
+        Ok(()) => info!("journey recorded: {r:?}"),
+        Err(e) => warn!("could not record the journey in {}: {e}", path.display()),
+    }
+}
+
 /// The illnesses by name, for reading them back.
 const ILLNESSES: [&str; 10] = ["cholera", "mountain fever", "measles", "typhoid fever", "scurvy", "a broken bone", "injuries", "a snakebite", "bad water", "a wound"];
 
@@ -200,6 +260,8 @@ mod tests {
         }
         assert_eq!(to_text(&back), to_text(&g));
         assert!(from_text("something else").is_none());
+        let r = Record::of(&g);
+        assert_eq!(Record::read(&r.line()), Some(r));
         assert!(dir().is_none(), "tests keep nothing on disk");
     }
 }

@@ -22,7 +22,7 @@ everything below is in.
   bot runs per change, 2026-11-14); text, events and numbers tuned from that
 - [x] The journey kept between sessions in the state folder
 - [x] The first release build (v0.5.0, 2026-11-03)
-- [ ] David plays it through
+- [ ] David plays it through (carried to 1.0.0)
 
 ## 0.7.0: art and hunting
 
@@ -31,8 +31,15 @@ everything below is in.
   title (the old plain-character scenes retired)
 - [x] An action hunting scene beside the text hunt: stalking on foot, with
   wind, cover, a herd's alarm and the light running out
+- 0.7.1: the same game, its Cargo.lock in step so the release builds (the
+  v0.7.0 tag's build stopped on a stale lock)
 
 ## 1.0.0
 
-- [ ] Everything above played through and tuned
-- [ ] The name settled (a better one may still come along)
+- [x] Everything above played through and tuned (by hand in a terminal at
+  100x30 and 80x24, stalking included, and 400-journey bot runs)
+- [x] A register of journeys made, on the title page and at the end
+- [x] The name kept as Westering, the conservative choice made without
+  David (in the catalog since 2026-10-28; free on Steam, itch.io and
+  crates.io); a rename stays open to him
+- [ ] David plays it through (carried over from 0.6.0)

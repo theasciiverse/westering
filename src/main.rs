@@ -75,6 +75,7 @@ fn run(seed: u64) -> io::Result<()> {
     let mut terminal = ratatui::init();
     let mut game = Game::new(seed);
     game.can_resume = save::exists();
+    game.records = save::records();
     let result = (|| -> io::Result<()> {
         let tick = Duration::from_millis(1000 / stalk::TICKS_PER_SECOND as u64);
         let mut last_tick = std::time::Instant::now();
@@ -109,7 +110,8 @@ fn run(seed: u64) -> io::Result<()> {
                     _ => continue,
                 };
                 if game.screen == game::Screen::Title && game.can_resume && key == Key::Char('c') {
-                    if let Some(g) = save::load() {
+                    if let Some(mut g) = save::load() {
+                        g.records = std::mem::take(&mut game.records);
                         game = g;
                     }
                     continue;
@@ -117,7 +119,10 @@ fn run(seed: u64) -> io::Result<()> {
                 let was_over = matches!(game.screen, game::Screen::Epitaph(_) | game::Screen::End);
                 game.key(key);
                 match game.screen {
-                    game::Screen::Epitaph(_) | game::Screen::End if !was_over => save::forget(),
+                    game::Screen::Epitaph(_) | game::Screen::End if !was_over => {
+                        save::forget();
+                        save::record(&save::Record::of(&game));
+                    }
                     _ => save::store(&game),
                 }
             }
