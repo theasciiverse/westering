@@ -209,7 +209,7 @@ pub static ROUTE: [Landmark; 25] = [
         name: "Fort Vancouver",
         kind: Fort(1.4),
         region: Columbia,
-        note: "You came through the Cascades rapids alive. Dr. McLoughlin's people have helped many a ragged party here.",
+        note: "You came through the Cascades rapids alive. The Hudson's Bay Company's chief post in the West. Dr. McLoughlin, who ran it for twenty years and helped many a ragged party, now lives at Oregon City.",
         next: Next::On(24, 25.0),
     },
     Landmark {

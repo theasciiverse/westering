@@ -58,24 +58,25 @@ fn weights(j: &Journey, day: u32, supplies: &Supplies, started: u32) -> Vec<(Eve
         Pace::Grueling => 1.8,
     };
     let rough = if matches!(r, Mountains | BlueMountains) { 2.0 } else { 1.0 };
-    let long_out = day.saturating_sub(started) as f64 / 60.0;
+    // scurvy comes after two months or more without fresh food
+    let long_out = (day.saturating_sub(started) as f64 / 60.0 - 0.75).max(0.0);
     vec![
         // 1848 came just before the great cholera years on the trail
         (Cholera, if plains && summer { 0.5 } else { 0.0 }),
         (MountainFever, if r == Mountains && summer { 2.0 } else { 0.0 }),
         (Measles, if plains { 0.8 } else { 0.2 }),
-        (Typhoid, 0.6 * hard),
+        (Typhoid, 0.8 * hard),
         (Scurvy, if j.rations != Rations::Filling { 0.8 * long_out } else { 0.15 * long_out }),
         (BrokenBone, 0.7 * hard * rough),
         (RunOver, 0.35 * hard),
         (Snakebite, if matches!(r, HighPlains | SnakeDesert) { 0.6 } else { 0.1 }),
-        (Breakdown, 2.0 * hard * rough),
+        (Breakdown, 1.4 * hard * rough),
         (OxStrays, if supplies.get(Item::Oxen) > 0 { 0.9 } else { 0.0 }),
         (OxDies, if supplies.get(Item::Oxen) > 0 { (100.0 - j.oxen_health) / 25.0 } else { 0.0 }),
         (Hail, if plains && (4..=7).contains(&m) { 0.5 } else { 0.1 }),
         (PoorGrass, if r == SnakeDesert { 1.5 } else if m <= 4 || m >= 9 { 0.8 } else { 0.3 }),
         (BadWater, if matches!(r, HighPlains | SnakeDesert) { 1.0 } else { 0.3 }),
-        (LostTrail, 0.6),
+        (LostTrail, if plains { 0.15 } else { 0.6 }),
         (Abandoned, if plains { 0.5 } else { 1.2 }),
         (GoodCamp, 0.9),
         (Kindness, if r == Prairie { 0.2 } else { 0.7 }),
@@ -83,6 +84,40 @@ fn weights(j: &Journey, day: u32, supplies: &Supplies, started: u32) -> Vec<(Eve
         (Theft, 0.4),
         (Mud, if r == Prairie && m <= 6 { 1.0 } else { 0.2 }),
     ]
+}
+
+/// The chance of snow closing the road on a day, for a party still in the
+/// high country late in the year: the Rockies from mid-September, the Blue
+/// Mountains from October, the Cascades on the Barlow Road from late October.
+fn snow_chance(r: Region, day: u32) -> f64 {
+    // half-months since the first of September
+    let half = day.saturating_sub(date::first_of(9)) / 15;
+    let by_half: [f64; 8] = match r {
+        Region::Mountains => [0.0, 0.03, 0.07, 0.12, 0.18, 0.25, 0.3, 0.35],
+        Region::BlueMountains => [0.0, 0.0, 0.04, 0.09, 0.15, 0.22, 0.3, 0.35],
+        Region::Columbia => [0.0, 0.0, 0.0, 0.04, 0.1, 0.18, 0.25, 0.3],
+        _ => return 0.0,
+    };
+    by_half[(half as usize).min(7)]
+}
+
+/// Snow on the heights, if it comes today: days lost breaking a road, the
+/// oxen and the people worn by it.
+pub fn snow(rng: &mut Rng, j: &mut Journey, day: u32, party: &mut [Person], supplies: &mut Supplies) -> Option<Happening> {
+    if !rng.chance(snow_chance(j.region, day)) {
+        return None;
+    }
+    let days = rng.range(2, 5) as u32;
+    j.oxen_health = (j.oxen_health - 15.0).max(0.0);
+    for p in party.iter_mut().filter(|p| p.alive()) {
+        p.health = (p.health - 10).max(1);
+    }
+    let mut text = format!("Snow on the heights, a foot of it by morning. The oxen paw for grass and you lose {days} days breaking a road through the drifts.");
+    if supplies.get(Item::Oxen) > 0 && rng.chance(0.3) {
+        supplies.take(Item::Oxen, 1);
+        text.push_str(" One ox does not live through the cold.");
+    }
+    Some(Happening { text, days_lost: days, stop: true })
 }
 
 /// The people still alive, by index.
@@ -154,13 +189,13 @@ pub fn roll(rng: &mut Rng, j: &mut Journey, day: u32, party: &mut [Person], supp
             };
         }
         Breakdown => {
-            let (part, item) = *rng.pick(&[("wheel", Item::Wheel), ("axle", Item::Axle), ("tongue", Item::Tongue)]);
+            let (part, item) = *rng.pick(&[("A wheel", Item::Wheel), ("An axle", Item::Axle), ("The tongue", Item::Tongue)]);
             if supplies.take(item, 1) == 1 {
-                h.text = format!("A {part} broke. You fit the spare and lose half a day.");
+                h.text = format!("{part} broke. You fit the spare and lose half a day.");
             } else {
                 h.days_lost = rng.range(2, 4) as u32;
                 h.stop = true;
-                h.text = format!("A {part} broke and you have no spare. It takes {} days to cut timber and make one that will hold.", h.days_lost);
+                h.text = format!("{part} broke and you have no spare. It takes {} days to cut timber and make one that will hold.", h.days_lost);
             }
         }
         OxStrays => {
@@ -205,8 +240,10 @@ pub fn roll(rng: &mut Rng, j: &mut Journey, day: u32, party: &mut [Person], supp
             }
         }
         LostTrail => {
-            h.days_lost = rng.range(1, 3) as u32;
-            h.text = format!("You lost the trail in broken country and lose {} {} finding it.", h.days_lost, if h.days_lost == 1 { "day" } else { "days" });
+            h.days_lost = rng.range(1, 2) as u32;
+            let plains = matches!(j.region, Region::Prairie | Region::HighPlains);
+            let how = if plains { "You followed a stock trail off the road" } else { "You lost the trail in broken country" };
+            h.text = format!("{how} and spent {} finding it again.", if h.days_lost == 1 { "a day" } else { "two days" });
         }
         Abandoned => {
             let found = *rng.pick(&[Item::Food, Item::Food, Item::Clothing, Item::Shot, Item::Wheel, Item::Axle, Item::Tongue]);
@@ -231,10 +268,13 @@ pub fn roll(rng: &mut Rng, j: &mut Journey, day: u32, party: &mut [Person], supp
             .into();
         }
         Kindness => {
+            // the peoples whose country the road crossed in 1848
             let people = match j.region {
-                Region::Prairie | Region::HighPlains => "A Lakota family",
+                Region::Prairie => "A Kaw family",
+                Region::HighPlains => *rng.pick(&["A Lakota family", "A Cheyenne family"]),
                 Region::Mountains | Region::SnakeDesert => "A Shoshone family",
-                _ => "A Nez Perce family",
+                Region::BlueMountains => "A Nez Perce family",
+                Region::Columbia => "A Wasco family",
             };
             if j.region == Region::SnakeDesert || j.region == Region::Columbia {
                 supplies.add(Item::Food, 30);

@@ -10,8 +10,9 @@
 //! prints the screen as text. In a script `>` is Enter, `<` Backspace, `!`
 //! Esc, `^` `_` `{` `}` the up, down, left and right arrows; every other
 //! character is itself. `--bot N [--seed S]` plays N journeys with a
-//! sensible and a careless rule player and prints how they fared;
-//! `--bot-show SEED [--careless]` prints the last screen of one.
+//! sensible and a careless rule player and prints how they fared (`--month
+//! M`, 3 to 7, sends both off in that month);
+//! `--bot-show SEED [--careless]` prints the last screen of one and its diary.
 
 mod art;
 mod bot;
@@ -23,6 +24,7 @@ mod party;
 mod river;
 mod rng;
 mod route;
+mod save;
 mod trail;
 mod ui;
 
@@ -38,12 +40,16 @@ fn main() -> io::Result<()> {
     let arg = |name: &str| args.iter().position(|a| a == name).and_then(|i| args.get(i + 1)).map(String::as_str);
     let seed = arg("--seed").and_then(|s| s.parse().ok()).unwrap_or_else(seed);
     if let Some(n) = arg("--bot") {
-        print!("{}", bot::report(n.parse().unwrap_or(100), seed.min(1 << 40)));
+        print!("{}", bot::report(n.parse().unwrap_or(100), seed.min(1 << 40), arg("--month").and_then(|m| m.parse().ok())));
         return Ok(());
     }
     if let Some(s) = arg("--bot-show") {
         let g = bot::play(s.parse().unwrap_or(0), if args.iter().any(|a| a == "--careless") { bot::Strategy::Careless } else { bot::Strategy::Sensible });
         print!("{}", render(&g, (80, 50)));
+        println!("--- the diary ---");
+        for line in &g.diary {
+            println!("{line}");
+        }
         return Ok(());
     }
     if let Some(keys) = arg("--script") {
@@ -61,6 +67,7 @@ fn seed() -> u64 {
 fn run(seed: u64) -> io::Result<()> {
     let mut terminal = ratatui::init();
     let mut game = Game::new(seed);
+    game.can_resume = save::exists();
     let result = (|| -> io::Result<()> {
         while !game.done() {
             terminal.draw(|f| ui::draw(f, &game))?;
@@ -84,7 +91,18 @@ fn run(seed: u64) -> io::Result<()> {
                     KeyCode::Right => Key::Right,
                     _ => continue,
                 };
+                if game.screen == game::Screen::Title && game.can_resume && key == Key::Char('c') {
+                    if let Some(g) = save::load() {
+                        game = g;
+                    }
+                    continue;
+                }
+                let was_over = matches!(game.screen, game::Screen::Epitaph(_) | game::Screen::End);
                 game.key(key);
+                match game.screen {
+                    game::Screen::Epitaph(_) | game::Screen::End if !was_over => save::forget(),
+                    _ => save::store(&game),
+                }
             }
         }
         Ok(())

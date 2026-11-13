@@ -28,7 +28,7 @@ pub fn draw(f: &mut Frame, game: &Game) {
     f.render_widget(Block::new().style(Style::new().bg(BLACK).fg(GREEN)), area);
     let page = column(area);
     match &game.screen {
-        Screen::Title => title(f, page),
+        Screen::Title => title(f, page, game),
         Screen::Names(i) => names(f, page, game, *i),
         Screen::Month => month(f, page, game),
         Screen::Store => store(f, page, game),
@@ -60,7 +60,7 @@ pub fn bold(s: impl Into<String>) -> Span<'static> {
     Span::styled(s.into(), Style::new().fg(GREEN).add_modifier(Modifier::BOLD))
 }
 
-fn title(f: &mut Frame, page: Rect) {
+fn title(f: &mut Frame, page: Rect, game: &Game) {
     let art = [
         r"__        __        _            _             ",
         r"\ \      / /__  ___| |_ ___ _ __(_)_ __   __ _ ",
@@ -78,7 +78,11 @@ fn title(f: &mut Frame, page: Rect) {
     lines.push(Line::from("and the Willamette Valley. Every wagon that sets out is a wager.").centered());
     lines.push(Line::default());
     lines.push(Line::default());
-    lines.push(Line::from(vec![amber("Enter"), Span::raw(" set out    "), amber("Esc"), Span::raw(" quit")]).centered());
+    if game.can_resume {
+        lines.push(Line::from(vec![amber("c"), Span::raw(" take up your journey    "), amber("Enter"), Span::raw(" set out anew    "), amber("Esc"), Span::raw(" quit")]).centered());
+    } else {
+        lines.push(Line::from(vec![amber("Enter"), Span::raw(" set out    "), amber("Esc"), Span::raw(" quit")]).centered());
+    }
     f.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), page);
 }
 
@@ -174,7 +178,7 @@ fn status(game: &Game) -> Vec<Line<'static>> {
         Line::from(vec![bold(format!("{:<36}", date::format(game.day))), Span::raw(format!("Weather: {}", j.weather.describe()))]),
         row(format!("Health: {}", trail::health_word(&game.party)), format!("Pace: {}   Rations: {}", j.pace.name(), j.rations.name())),
         row(format!("Provisions: {} lb", game.supplies.get(Item::Food)), if game.on_foot { "On foot, the wagon left behind".to_string() } else { format!("Oxen: {}, {}", game.supplies.get(Item::Oxen), trail::oxen_word(j.oxen_health)) }),
-        row(format!("Next: {}, {:.0} mi", game.next_landmark(), game.left.max(0.0)), format!("Travelled: {:.0} miles", j.miles)),
+        row(if game.left <= 0.0 && game.at == game.to { format!("At {}", ROUTE[game.at].name) } else { format!("Next: {}, {:.0} mi", game.next_landmark(), game.left.max(0.0)) }, format!("Travelled: {:.0} miles", j.miles)),
         Line::from(people(game)),
     ]
 }
@@ -258,14 +262,15 @@ fn trail(f: &mut Frame, page: Rect, game: &Game) {
     body.extend(diary(game, rows, page.width as usize));
     body.push(Line::default());
     body.extend(menu);
-    let help = if game.leaving {
-        let mut ask = keys(&[("y", "leave"), ("n", "stay")]);
-        ask.spans.insert(0, Span::styled("Leave the trail? This journey will be lost.   ", Style::new().fg(RED)));
-        ask
-    } else {
-        keys(&[("Up Down", "choose"), ("Enter", "do it"), ("1-6", "at once"), ("Esc", "leave")])
-    };
+    let help = if game.leaving { leave_question() } else { keys(&[("Up Down", "choose"), ("Enter", "do it"), ("1-6", "at once"), ("Esc", "leave")]) };
     page_with(f, page, "On the trail", body, &game.note, help);
+}
+
+/// Esc on the trail or at a landmark: leave for now?
+fn leave_question() -> Line<'static> {
+    let mut ask = keys(&[("y", "leave"), ("n", "stay")]);
+    ask.spans.insert(0, Span::styled("Stop here for now? The journey waits for you.   ", Style::new().fg(AMBER)));
+    ask
 }
 
 fn landmark(f: &mut Frame, page: Rect, game: &Game) {
@@ -276,20 +281,36 @@ fn landmark(f: &mut Frame, page: Rect, game: &Game) {
     body.push(Line::default());
     let note: Vec<Line> = wrap(l.note, page.width as usize).into_iter().map(Line::from).collect();
     let choices = game.landmark_choices();
-    // the scene only where it leaves room for the note and the choices
-    if let Some(scene) = crate::art::scene(l) {
-        let room = (page.height as usize).saturating_sub(3 + 4 + body.len() + note.len() + 1 + choices.len());
-        if scene.len() < room {
-            body.extend(scene.iter().map(|s| Line::from(amber(*s))));
-            body.push(Line::default());
+    // what happened on the way here, then the scene, each only where it
+    // leaves room for the note and the choices
+    let mut room = (page.height as usize).saturating_sub(3 + 4 + body.len() + note.len() + 1 + choices.len());
+    let way: Vec<&String> = game.diary.get(game.stretch..).unwrap_or_default().iter().filter(|e| !e.contains(": Reached ")).collect();
+    let mut on_the_way = Vec::new();
+    for entry in way {
+        for w in wrap(entry, page.width as usize) {
+            on_the_way.push(Line::from(w).style(Style::new().fg(DARK)));
         }
+    }
+    if !on_the_way.is_empty() {
+        // the newest lines, when not all fit
+        let keep = on_the_way.len().min(room.saturating_sub(1));
+        let skip = on_the_way.len() - keep;
+        body.splice(body.len() - 2..body.len() - 2, on_the_way.into_iter().skip(skip).chain(std::iter::once(Line::default())));
+        room = room.saturating_sub(keep + 1);
+    }
+    if let Some(scene) = crate::art::scene(l)
+        && scene.len() < room
+    {
+        body.extend(scene.iter().map(|s| Line::from(amber(*s))));
+        body.push(Line::default());
     }
     body.extend(note);
     body.push(Line::default());
     for (i, c) in choices.iter().enumerate() {
-        body.push(Line::from(vec![pointer(i == game.cursor), bold(c.clone())]));
+        body.push(Line::from(vec![pointer(i == game.cursor), amber(format!("{} ", i + 1)), bold(c.clone())]));
     }
-    page_with(f, page, l.name, body, &game.note, keys(&[("Up Down", "choose"), ("Enter", "do it")]));
+    let help = if game.leaving { leave_question() } else { keys(&[("Up Down", "choose"), ("Enter", "do it"), ("Esc", "leave")]) };
+    page_with(f, page, l.name, body, &game.note, help);
 }
 
 fn river_page(f: &mut Frame, page: Rect, game: &Game) {
@@ -302,7 +323,7 @@ fn river_page(f: &mut Frame, page: Rect, game: &Game) {
     }
     body.push(Line::default());
     for (i, (_, c)) in game.river_choices().iter().enumerate() {
-        body.push(Line::from(vec![pointer(i == game.cursor), bold(c.clone())]));
+        body.push(Line::from(vec![pointer(i == game.cursor), amber(format!("{} ", i + 1)), bold(c.clone())]));
     }
     page_with(f, page, &format!("Crossing the {}", crate::river::river_name(l.name)), body, &game.note, keys(&[("Up Down", "choose"), ("Enter", "do it"), ("Esc", "back")]));
 }
@@ -333,10 +354,13 @@ fn epitaph(f: &mut Frame, page: Rect, game: &Game, i: usize) {
     body.extend(wrap(&died, w).into_iter().map(Line::from));
     body.push(Line::default());
     body.push(Line::from("You cut a board for the grave. What shall it say?"));
+    if game.epitaph_offered {
+        body.push(Line::from(dim("Keep these words with Enter, or type your own.")));
+    }
     body.push(Line::default());
     body.push(Line::from(vec![
         amber("> "),
-        Span::raw(game.epitaph_text.clone()),
+        if game.epitaph_offered { dim(game.epitaph_text.clone()) } else { Span::raw(game.epitaph_text.clone()) },
         Span::styled("_", Style::new().fg(AMBER).add_modifier(Modifier::SLOW_BLINK)),
     ]));
     page_with(f, page, "A grave by the trail", body, "", keys(&[("type", "the words"), ("Backspace", "erase"), ("Enter", "done")]));

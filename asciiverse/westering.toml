@@ -4,6 +4,7 @@ kind = "game"
 title = "Westering"
 description = "Take a wagon party two thousand miles from Independence to the Willamette Valley in 1848: outfit, pace and rations, hunting, seven rivers and the forts between."
 year = 2026
+new = true
 license = "MIT"
 repo = "theasciiverse/westering"
 provenance = "A journey game in the line of The Oregon Trail (Don Rawitsch, Bill Heinemann and Paul Dillenberger, 1971), on the real road of 1848, written for Asciiverse in 2026."
@@ -14,7 +15,8 @@ genre = "strategy"
 name = "Asciiverse"
 url = "https://asciiverse.sh"
 
-# the archive holds westering, README.md and LICENSE; nothing is saved
+# the archive holds westering, README.md and LICENSE; a journey under way
+# is kept in $XDG_STATE_HOME/westering/journey.txt
 [exec]
 game = "westering"
 args = []
@@ -31,11 +33,11 @@ mouse = false
 gamepad = false
 
 # 100x30, recorded with hub/tools/castrec.py and --seed 7: outfitting in
-# Independence, the first week, the Kansas River by ferry; the still is the
-# river scene
+# Independence, the first week, the Kansas River by ferry, the Big Blue
+# floated; the still is the Kansas River scene
 [media]
 cast = "asciiverse/westering.cast"
-thumbnail_at = 29.5
+thumbnail_at = 23.0
 
 [release]
 source = "github"

@@ -9,6 +9,11 @@ impl Rng {
         Rng(seed)
     }
 
+    /// The state, which `Rng::new` takes back to go on from here.
+    pub fn state(&self) -> u64 {
+        self.0
+    }
+
     pub fn next(&mut self) -> u64 {
         self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
         let mut z = self.0;

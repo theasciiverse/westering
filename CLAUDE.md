@@ -10,11 +10,10 @@ arriving. Rust + Ratatui, our own code, writing and art.
 in a loop while David slept (`PLAN.md` has the milestones and the log). Put
 on the roster by David, 2026-10-27, as the answer to "can we offer The
 Oregon Trail in Asciiverse?" (see Rights). Repo theasciiverse/westering
-(private); in the catalog since 2026-10-28 (`hub/catalog/westering.toml`,
+(public); in the catalog since 2026-10-28 (`hub/catalog/westering.toml`,
 kept in step with `asciiverse/`), with its cast and a link from 1971 on the
-website's history page. v0.1.0 is tagged, but its release build has not
-run: GitHub refused the jobs over the account's billing.
-Version 0.5.0 (2026-10-28). What comes next, release by release, is in `ROADMAP.md`.
+website's history page. Released from v0.5.0 on. Version 0.6.0
+(2026-11-14, played and tuned). What comes next, release by release, is in `ROADMAP.md`.
 
 ## Code
 
@@ -24,13 +23,17 @@ env_logger.
 - `main.rs`: terminal loop and the headless modes: `--script KEYS` plays
   keys and prints the screen (`>` Enter, `<` Backspace, `!` Esc, `^` `_`
   `{` `}` arrows), `--bot N` runs N journeys with a sensible and a careless
-  rule player and prints the outcome, `--bot-show SEED [--careless]` prints
-  one's last screen
+  rule player and prints the outcome (`--month M` sends them off in another
+  month), `--bot-show SEED [--careless]` prints one's last screen and its
+  diary
 - `game.rs`: the screens and every key; `ui.rs` draws them on a 72-column page
 - `party.rs` (people, goods, store prices), `trail.rs` (a day: miles, food,
   weather, health, oxen), `route.rs` (the 25 landmarks), `events.rs`,
   `river.rs`, `hunt.rs`, `bot.rs`, `date.rs`, `rng.rs` (SplitMix64, so a
   seed replays a journey)
+- `save.rs`: the journey kept in `$XDG_STATE_HOME/westering/journey.txt`
+  (on Windows `%LOCALAPPDATA%`), written at every trail and landmark page,
+  removed when the journey ends; none under `cfg(test)`
 - `RUST_LOG=debug westering 2>westering.log` logs keys, screens, events and
   outcomes
 - Balance is pinned by a test in `bot.rs`; rerun `--bot 400` after changing
@@ -79,7 +82,5 @@ Trail once it is playable.
 ## Open
 
 The name, if a better one comes along (free on Steam, itch.io and
-crates.io, 2026-10-28); the art (plain text
-now, half-block landmark scenes considered); an action hunting scene; the
-first release build (GitHub billing), then the repo made public so `av` can
-download it.
+crates.io, 2026-10-28); half-block art and an action hunting scene (0.7.0);
+David's own play-through.

@@ -56,7 +56,7 @@ fn risk(way: Way, depth: f64, width: u32, quicksand: bool) -> (f64, f64) {
             }
             (p, if depth > 4.0 { 0.35 } else { 0.1 })
         }
-        Way::Float => ((0.07 + width as f64 / 4000.0 + (depth - 6.0).max(0.0) * 0.04).min(0.6), 0.15),
+        Way::Float => ((0.07 + width as f64 / 4000.0 + (depth - 6.0).max(0.0) * 0.04).min(0.6), 0.1),
         Way::Ferry => (0.02, 0.0),
         Way::Wait => (0.0, 0.0),
     }

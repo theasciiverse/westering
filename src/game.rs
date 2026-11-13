@@ -90,6 +90,8 @@ pub struct Game {
     pub depth: f64,
     /// the epitaph being written
     pub epitaph_text: String,
+    /// the words are still the ones offered: the first letter typed replaces them
+    pub epitaph_offered: bool,
     /// days hunted on this stretch of road
     pub hunted: u32,
     /// the wagon has been left behind
@@ -98,6 +100,11 @@ pub struct Game {
     pub passed: Vec<f64>,
     /// Esc on the trail page: asking whether to leave the journey
     pub leaving: bool,
+    /// where in the diary the road from the last landmark began, so a
+    /// landmark page can show what happened on the way to it
+    pub stretch: usize,
+    /// a journey is kept from an earlier session, to take up from the title
+    pub can_resume: bool,
 }
 
 impl Game {
@@ -131,10 +138,13 @@ impl Game {
             started: 0,
             depth: 0.0,
             epitaph_text: String::new(),
+            epitaph_offered: false,
             hunted: 0,
             on_foot: false,
             passed: Vec::new(),
             leaving: false,
+            stretch: 0,
+            can_resume: false,
         }
     }
 
@@ -275,7 +285,7 @@ impl Game {
         }
         info!("leaving Independence on {} with {:?}, {} left", date::format(self.day), self.supplies, party::money(self.money));
         self.started = self.day;
-        self.diary.push(format!("{}: Left Independence with {} oxen and {} lb of provisions.", date::format(self.day), self.supplies.get(Item::Oxen), self.supplies.get(Item::Food)));
+        self.diary.push(format!("{}: Left Independence with {} oxen and {} lb of provisions.", date::short(self.day), self.supplies.get(Item::Oxen), self.supplies.get(Item::Food)));
         self.set_out(route::START);
     }
 
@@ -288,6 +298,7 @@ impl Game {
 
     fn head_for(&mut self, to: usize, miles: f64) {
         self.hunted = 0;
+        self.stretch = self.diary.len();
         self.to = to;
         self.left = miles;
         self.journey.region = ROUTE[to].region;
@@ -298,16 +309,25 @@ impl Game {
         self.party.iter().filter(|p| p.alive()).count()
     }
 
-    fn trail_key(&mut self, key: Key) {
-        if self.leaving {
-            match key {
-                Key::Char('y') => {
-                    info!("left the trail on {} at mile {:.0}", date::format(self.day), self.journey.miles);
-                    self.go(Screen::Quit);
-                }
-                Key::Char('n') | Key::Esc => self.leaving = false,
-                _ => {}
+    /// Esc asked whether to leave for now; the answer. True when the key
+    /// was taken by the question.
+    fn leaving_key(&mut self, key: Key) -> bool {
+        if !self.leaving {
+            return false;
+        }
+        match key {
+            Key::Char('y') => {
+                info!("left the trail on {} at mile {:.0}", date::format(self.day), self.journey.miles);
+                self.go(Screen::Quit);
             }
+            Key::Char('n') | Key::Esc => self.leaving = false,
+            _ => {}
+        }
+        true
+    }
+
+    fn trail_key(&mut self, key: Key) {
+        if self.leaving_key(key) {
             return;
         }
         match key {
@@ -332,7 +352,7 @@ impl Game {
             1 => {
                 let from = self.day;
                 let d = self.live_day(true);
-                self.diary.push(format!("{}: Rested a day.", date::format(from)));
+                self.diary.push(format!("{}: Rested a day.", date::short(from)));
                 for (name, what) in d.recovered {
                     self.diary.push(format!("{name} is well again after {what}."));
                 }
@@ -367,7 +387,23 @@ impl Game {
             s.set(part, 0);
         }
         info!("wagon abandoned, walking on with {food} lb");
-        self.diary.push(format!("{}: With no team to pull it, you leave the wagon by the road and walk on with {food} lb of provisions on your backs.", date::format(self.day)));
+        self.diary.push(format!("{}: With no team to pull it, you leave the wagon by the road and walk on with {food} lb of provisions on your backs.", date::short(self.day)));
+    }
+
+    /// The Sublette Cutoff: fifty miles without water, driven through the
+    /// night. It tells on the oxen and the people, and may cost an ox.
+    fn dry_drive(&mut self) {
+        let j = &mut self.journey;
+        j.oxen_health = (j.oxen_health - 20.0).max(0.0);
+        for p in self.party.iter_mut().filter(|p| p.alive()) {
+            p.health = (p.health - 5).max(1);
+        }
+        let mut line = "You fill every keg and drive through the night across the dry stretch. The oxen go two days without water.".to_string();
+        if self.supplies.get(Item::Oxen) > 0 && self.rng.chance(0.3) {
+            self.supplies.take(Item::Oxen, 1);
+            line.push_str(" One drops in the yoke and is left behind.");
+        }
+        self.diary.push(line);
     }
 
     /// A day's hunting, if there is shot for it.
@@ -385,7 +421,7 @@ impl Game {
         self.supplies.add(Item::Food, h.meat);
         info!("hunted: {} lb, {} rounds", h.meat, h.shot);
         let d = self.live_day(true);
-        self.diary.push(format!("{}: Hunting. {}", date::format(from), h.text));
+        self.diary.push(format!("{}: Hunting. {}", date::short(from), h.text));
         for name in &d.died {
             let o = self.obituary(name);
             self.diary.push(o);
@@ -403,14 +439,14 @@ impl Game {
         for (name, what) in &d.recovered {
             info!("{name} got over {what}");
         }
-        self.bury(&d.died);
+        self.bury(&d.died, self.day - 1);
         d
     }
 
     /// Mark the graves of those who died today.
-    fn bury(&mut self, died: &[String]) {
+    fn bury(&mut self, died: &[String], day: u32) {
         let place = if self.left <= 0.0 { format!("at {}", ROUTE[self.at].name) } else { format!("on the way to {}", ROUTE[self.to].name) };
-        let when = date::format(self.day.saturating_sub(1));
+        let when = date::format(day);
         for p in self.party.iter_mut().filter(|p| !p.alive() && p.grave.is_none()) {
             if died.contains(&p.name) || p.cause.as_deref() == Some("drowning") {
                 p.grave = Some(format!("{when}, {place}"));
@@ -443,7 +479,7 @@ impl Game {
             let mut stop = !d.died.is_empty();
             died.extend(d.died);
             for (name, what) in d.recovered {
-                happened.push(format!("{}: {name} is well again after {what}.", date::format(self.day - 1)));
+                happened.push(format!("{}: {name} is well again after {what}.", date::short(self.day - 1)));
             }
             if self.left <= 0.0 {
                 // the last day's overshoot is the landmark's own ground
@@ -453,11 +489,10 @@ impl Game {
                 arrived = true;
                 break;
             }
-            if self.alive() > 0
-                && let Some(h) = events::roll(&mut self.rng, &mut self.journey, self.day - 1, &mut self.party, &mut self.supplies, self.started)
-            {
+            let snow = if self.alive() > 0 && !self.on_raft() { events::snow(&mut self.rng, &mut self.journey, self.day - 1, &mut self.party, &mut self.supplies) } else { None };
+            if let Some(h) = snow.or_else(|| if self.alive() > 0 { events::roll(&mut self.rng, &mut self.journey, self.day - 1, &mut self.party, &mut self.supplies, self.started) } else { None }) {
                 info!("event: {}", h.text);
-                happened.push(format!("{}: {}", date::format(self.day - 1), h.text));
+                happened.push(format!("{}: {}", date::short(self.day - 1), h.text));
                 for _ in 0..h.days_lost {
                     let d = self.live_day(true);
                     died.extend(d.died);
@@ -504,14 +539,14 @@ impl Game {
         self.passed.push(self.journey.miles);
         let l = &ROUTE[self.at];
         info!("reached {} on {}, {:.0} miles", l.name, date::format(self.day), self.journey.miles);
-        self.diary.push(format!("{}: Reached {}.", date::format(self.day), l.name));
+        self.diary.push(format!("{}: Reached {}.", date::short(self.day), l.name));
         if let Kind::River { depth, .. } = l.kind {
             self.depth = river::depth_on(&mut self.rng, depth, self.day);
         }
         if l.name == "Fort Vancouver" {
             let lines = river::rapids(&mut self.rng, &mut self.party, &mut self.supplies);
             self.diary.extend(lines);
-            self.bury(&[]);
+            self.bury(&[], self.day);
             if self.alive() == 0 {
                 self.finish();
                 return;
@@ -535,6 +570,7 @@ impl Game {
             Some(i) => {
                 self.go(Screen::Epitaph(i));
                 self.epitaph_text = default_epitaph(&self.party[i], &mut self.rng);
+                self.epitaph_offered = true;
             }
             None => self.go(Screen::End),
         }
@@ -542,8 +578,16 @@ impl Game {
 
     fn epitaph_key(&mut self, i: usize, key: Key) {
         match key {
-            Key::Char(c) if self.epitaph_text.chars().count() < 60 && !c.is_control() => self.epitaph_text.push(c),
+            Key::Char(c) if !c.is_control() => {
+                if std::mem::take(&mut self.epitaph_offered) {
+                    self.epitaph_text.clear();
+                }
+                if self.epitaph_text.chars().count() < 60 {
+                    self.epitaph_text.push(c);
+                }
+            }
             Key::Backspace => {
+                self.epitaph_offered = false;
                 self.epitaph_text.pop();
             }
             Key::Enter => {
@@ -573,7 +617,7 @@ impl Game {
         lines.push((format!("{} lb of provisions", s.get(Item::Food)), s.get(Item::Food) as i64 / 5));
         lines.push((format!("{} sets of clothing", s.get(Item::Clothing)), 5 * s.get(Item::Clothing) as i64));
         let spares = s.get(Item::Wheel) + s.get(Item::Axle) + s.get(Item::Tongue);
-        lines.push((format!("{spares} spare parts"), 10 * spares as i64));
+        lines.push((format!("{spares} spare {}", if spares == 1 { "part" } else { "parts" }), 10 * spares as i64));
         lines.push((format!("{} in your purse", party::money(self.money)), self.money as i64 / 100));
         // ahead of the autumn rains: October 1 is the mark
         let early = date::first_of(10) as i64 - self.day as i64;
@@ -595,11 +639,19 @@ impl Game {
     }
 
     fn landmark_key(&mut self, key: Key) {
+        if self.leaving_key(key) {
+            return;
+        }
         let n = self.landmark_choices().len();
         match key {
+            Key::Esc => self.leaving = true,
             Key::Up => self.cursor = self.cursor.saturating_sub(1),
             Key::Down => self.cursor = (self.cursor + 1).min(n - 1),
             Key::Enter => self.landmark_choice(self.cursor),
+            Key::Char(c @ '1'..='9') if (c as usize - '1' as usize) < n => {
+                self.cursor = c as usize - '1' as usize;
+                self.landmark_choice(self.cursor);
+            }
             _ => {}
         }
     }
@@ -616,7 +668,10 @@ impl Game {
                     }
                     self.money -= 500;
                 }
-                self.diary.push(format!("{}: {}.", date::format(self.day), label));
+                self.diary.push(format!("{}: {}.", date::short(self.day), label));
+                if label.contains("Sublette") {
+                    self.dry_drive();
+                }
                 if label.contains("Raft") {
                     for _ in 0..3 {
                         self.live_day(true);
@@ -654,6 +709,10 @@ impl Game {
             Key::Down => self.cursor = (self.cursor + 1).min(choices.len() - 1),
             Key::Esc => self.go(Screen::Landmark),
             Key::Enter => self.river_choice(choices[self.cursor].0),
+            Key::Char(c @ '1'..='9') if (c as usize - '1' as usize) < choices.len() => {
+                self.cursor = c as usize - '1' as usize;
+                self.river_choice(choices[self.cursor].0);
+            }
             _ => {}
         }
     }
@@ -685,9 +744,9 @@ impl Game {
         let quicksand = name.contains("South Platte");
         let c = river::cross(&mut self.rng, way, self.depth, width, quicksand, &mut self.party, &mut self.supplies);
         info!("crossed {name} by {way:?} at {:.1} ft: {:?}", self.depth, c.lines);
-        self.diary.push(format!("{}: Crossed the {}.", date::format(self.day), river::river_name(name)));
+        self.diary.push(format!("{}: Crossed the {}.", date::short(self.day), river::river_name(name)));
         self.diary.extend(c.lines);
-        self.bury(&[]);
+        self.bury(&[], self.day);
         if self.alive() == 0 {
             self.after_days();
             return;
@@ -715,7 +774,7 @@ impl Game {
         };
         let offer = Offer { give: (give, amount(give, &mut self.rng)), get: (get, amount(get, &mut self.rng)) };
         if self.rng.chance(0.25) {
-            self.diary.push(format!("{}: Nobody on the road had anything to trade.", date::format(self.day - 1)));
+            self.diary.push(format!("{}: Nobody on the road had anything to trade.", date::short(self.day - 1)));
             self.after_days();
             return;
         }
@@ -733,7 +792,7 @@ impl Game {
                 }
                 self.supplies.take(item, n);
                 self.supplies.add(offer.get.0, offer.get.1);
-                self.diary.push(format!("{}: Traded {} for {}.", date::format(self.day - 1), amount_of(offer.give), amount_of(offer.get)));
+                self.diary.push(format!("{}: Traded {} for {}.", date::short(self.day - 1), amount_of(offer.give), amount_of(offer.get)));
                 self.go(Screen::Trail);
             }
             Key::Char('n') | Key::Enter | Key::Esc => self.go(Screen::Trail),
@@ -763,6 +822,11 @@ impl Game {
             i = next;
         }
         (marks, miles)
+    }
+
+    /// Floating down the Columbia from The Dalles, where no snow closes the road.
+    fn on_raft(&self) -> bool {
+        ROUTE[self.to].name == "Fort Vancouver"
     }
 
     pub fn next_landmark(&self) -> &'static str {

@@ -171,7 +171,7 @@ pub const MONTHS: [(&str, &str); 5] = [
     ("July", "Very late. Only the lucky and the fast reach Oregon before winter."),
 ];
 
-pub const PURSE: u32 = 80000;
+pub const PURSE: u32 = 70000;
 
 pub fn money(cents: u32) -> String {
     format!("${}.{:02}", cents / 100, cents % 100)

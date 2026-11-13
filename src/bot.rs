@@ -31,15 +31,34 @@ fn buy_until(g: &mut Game, item: Item, want: u32) {
 
 /// Outfit, then play until the journey ends.
 pub fn play(seed: u64, strategy: Strategy) -> Game {
+    play_from(seed, strategy, None)
+}
+
+/// Play, leaving in the given month (3 March to 7 July) instead of the
+/// strategy's own.
+pub fn play_from(seed: u64, strategy: Strategy, month: Option<u32>) -> Game {
+    play_steps(seed, strategy, month, 5000)
+}
+
+/// Play only so many decisions into the journey.
+#[cfg(test)]
+pub fn play_until(seed: u64, strategy: Strategy, steps: usize) -> Game {
+    play_steps(seed, strategy, None, steps)
+}
+
+fn play_steps(seed: u64, strategy: Strategy, month: Option<u32>, steps: usize) -> Game {
     let sensible = strategy == Strategy::Sensible;
     let mut g = Game::new(seed);
     for _ in 0..6 {
         g.key(Key::Enter);
     }
-    // the month: April for the sensible, June for the careless
-    let month = if sensible { 1 } else { 2 };
+    // the month: April for the sensible, May for the careless
+    let month = month.map_or(if sensible { 1 } else { 2 }, |m| m.clamp(3, 7) as usize - 3);
     while g.cursor < month {
         g.key(Key::Down);
+    }
+    while g.cursor > month {
+        g.key(Key::Up);
     }
     g.key(Key::Enter);
     if sensible {
@@ -63,7 +82,7 @@ pub fn play(seed: u64, strategy: Strategy) -> Game {
         g.journey.pace = Pace::Grueling;
     }
     let mut waited = 0;
-    for _ in 0..5000 {
+    for _ in 0..steps {
         match g.screen {
             Screen::Trail => {
                 if !sensible {
@@ -116,8 +135,8 @@ pub fn play(seed: u64, strategy: Strategy) -> Game {
                         g.landmark_choice(n - 1);
                     }
                     // the sensible keep to the road and pay the toll; the careless cut corners
-                    Kind::Fork => g.landmark_choice(if sensible && g.money >= 500 { 1 } else { 0 }.min(n - 1)),
                     _ if l.name == "The Dalles" => g.landmark_choice(if sensible && g.money >= 500 { 0 } else { 1 }),
+                    Kind::Fork => g.landmark_choice(if sensible { 1 } else { 0 }.min(n - 1)),
                     _ => g.landmark_choice(0),
                 }
             }
@@ -149,7 +168,7 @@ pub fn play(seed: u64, strategy: Strategy) -> Game {
 }
 
 /// Play `n` journeys of each kind and report.
-pub fn report(n: u64, first_seed: u64) -> String {
+pub fn report(n: u64, first_seed: u64, month: Option<u32>) -> String {
     let mut out = String::new();
     for strategy in [Strategy::Sensible, Strategy::Careless] {
         let (mut arrived, mut alive, mut days, mut score) = (0, 0, 0, 0i64);
@@ -157,7 +176,7 @@ pub fn report(n: u64, first_seed: u64) -> String {
         let mut causes: std::collections::BTreeMap<String, u32> = Default::default();
         let mut lost_at: std::collections::BTreeMap<&str, u32> = Default::default();
         for seed in first_seed..first_seed + n {
-            let g = play(seed, strategy);
+            let g = play_from(seed, strategy, month);
             for p in g.party.iter().filter(|p| !p.alive()) {
                 *causes.entry(p.cause.clone().unwrap_or_default()).or_default() += 1;
             }
@@ -202,7 +221,7 @@ mod tests {
         });
         let whole = whole.count();
         let careless = (0..n).filter(|&s| play(s, Strategy::Careless).arrived()).count();
-        assert!((110..=150).contains(&whole), "sensible, whole party: {whole} of {n}");
+        assert!((130..=165).contains(&whole), "sensible, whole party: {whole} of {n}");
         assert!(careless <= 20, "careless arrived: {careless} of {n}");
     }
 }

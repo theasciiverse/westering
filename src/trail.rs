@@ -32,9 +32,9 @@ impl Pace {
     /// Miles a day with a strong team on good ground.
     fn miles(self) -> f64 {
         match self {
-            Pace::Steady => 13.0,
-            Pace::Hard => 17.0,
-            Pace::Grueling => 21.0,
+            Pace::Steady => 15.0,
+            Pace::Hard => 19.0,
+            Pace::Grueling => 23.0,
         }
     }
 
@@ -300,16 +300,14 @@ pub fn day(rng: &mut Rng, j: &mut Journey, day: u32, party: &mut [Person], suppl
             change -= if resting { ill.drain / 2 } else { ill.drain };
             cause = ill.name;
             ill.days = ill.days.saturating_sub(1);
-            if ill.days == 0 {
-                out.recovered.push((p.name.clone(), ill.name));
-                p.illness = None;
-            }
         }
         p.health = (p.health + change).clamp(0, 100);
         if !p.alive() {
             p.cause = Some(cause.into());
             p.illness = None;
             out.died.push(p.name.clone());
+        } else if let Some(ill) = p.illness.take_if(|ill| ill.days == 0) {
+            out.recovered.push((p.name.clone(), ill.name));
         }
     }
 

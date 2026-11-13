@@ -1,8 +1,8 @@
 # Roadmap
 
-Westering is at 0.5.0 (2026-10-28): playable from Independence to the
-Willamette Valley, but built in one night and not yet played and tuned by
-David. 1.0.0 is when everything below is in.
+Westering is at 0.6.0 (2026-11-14): played through and tuned by Claude
+overnight; David's own play-through is still to come. 1.0.0 is when
+everything below is in.
 
 ## 0.5.0: built
 
@@ -17,8 +17,11 @@ David. 1.0.0 is when everything below is in.
 
 ## 0.6.0: played and tuned
 
-- [ ] David plays it through; its text, events and numbers tuned from that
-- [ ] The first release build (waits on GitHub billing)
+- [x] Played through end to end (Claude, scripted in a terminal, and 400-journey
+  bot runs per change, 2026-11-14); text, events and numbers tuned from that
+- [x] The journey kept between sessions in the state folder
+- [x] The first release build (v0.5.0, 2026-11-03)
+- [ ] David plays it through
 
 ## 0.7.0: art and hunting
 
