@@ -23,6 +23,8 @@ pub enum Key {
     Down,
     Left,
     Right,
+    /// a fifth of a second passing, for the hunting scene
+    Tick,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -40,6 +42,10 @@ pub enum Screen {
     River,
     /// a trade offered by a passing party
     Trade(Offer),
+    /// how to hunt: stalk by hand, or send the hunters out
+    HuntChoice,
+    /// stalking game on foot (the scene is in `Game::stalk`)
+    Hunt,
     /// writing the words for the grave of the dead person at this index
     Epitaph(usize),
     /// the journey is over, arrived or not
@@ -105,6 +111,8 @@ pub struct Game {
     pub stretch: usize,
     /// a journey is kept from an earlier session, to take up from the title
     pub can_resume: bool,
+    /// the hunting scene under way
+    pub stalk: Option<crate::stalk::Stalk>,
 }
 
 impl Game {
@@ -145,6 +153,7 @@ impl Game {
             leaving: false,
             stretch: 0,
             can_resume: false,
+            stalk: None,
         }
     }
 
@@ -182,6 +191,22 @@ impl Game {
             Screen::Landmark => self.landmark_key(key),
             Screen::River => self.river_key(key),
             Screen::Trade(offer) => self.trade_key(offer, key),
+            Screen::HuntChoice => match key {
+                Key::Char('1') => self.start_stalk(),
+                Key::Char('2') => {
+                    self.go(Screen::Trail);
+                    self.go_hunting();
+                }
+                Key::Up | Key::Down => self.cursor = 1 - self.cursor.min(1),
+                Key::Enter if self.cursor == 0 => self.start_stalk(),
+                Key::Enter => {
+                    self.go(Screen::Trail);
+                    self.go_hunting();
+                }
+                Key::Esc => self.go(Screen::Trail),
+                _ => {}
+            },
+            Screen::Hunt => self.hunt_key(key),
             Screen::Epitaph(i) => self.epitaph_key(i, key),
             Screen::End => match key {
                 Key::Enter | Key::Char('y') => {
@@ -362,7 +387,13 @@ impl Game {
                 }
                 self.after_days();
             }
-            2 => self.go_hunting(),
+            2 => {
+                if self.supplies.get(Item::Shot) < hunt::SHOT_NEEDED {
+                    self.note = "You have too little powder and shot to hunt.".into();
+                } else {
+                    self.go(Screen::HuntChoice);
+                }
+            }
             3 => {
                 self.journey.pace = self.journey.pace.next();
                 self.note = format!("The pace is now {}.", self.journey.pace.name());
@@ -406,15 +437,89 @@ impl Game {
         self.diary.push(line);
     }
 
-    /// A day's hunting, if there is shot for it.
-    fn go_hunting(&mut self) {
+    fn hands(&self) -> u32 {
+        self.party.iter().filter(|p| p.alive() && p.illness.is_none()).count() as u32
+    }
+
+    /// Out on foot with the rifle: the hunting scene.
+    fn start_stalk(&mut self) {
+        let seed = self.rng.next();
+        let rounds = self.supplies.get(Item::Shot);
+        let carry = hunt::CARRY_EACH * self.hands().max(1);
+        let s = crate::stalk::Stalk::new(seed, self.journey.region, self.day, self.hunted, rounds, carry);
+        info!("stalking: {} animals, {rounds} rounds, carry {carry}", s.animals.len());
+        self.stalk = Some(s);
+        self.go(Screen::Hunt);
+    }
+
+    fn hunt_key(&mut self, key: Key) {
+        let Some(s) = self.stalk.as_mut() else {
+            self.go(Screen::Trail);
+            return;
+        };
+        if s.over {
+            if matches!(key, Key::Enter | Key::Esc | Key::Char(' ')) {
+                self.end_stalk();
+            }
+            return;
+        }
+        match key {
+            Key::Up => s.step(0, -1),
+            Key::Down => s.step(0, 1),
+            Key::Left => s.step(-1, 0),
+            Key::Right => s.step(1, 0),
+            Key::Char('q') => s.step(-1, -1),
+            Key::Char('e') => s.step(1, -1),
+            Key::Char('z') => s.step(-1, 1),
+            Key::Char('c') => s.step(1, 1),
+            Key::Char(' ') | Key::Char('f') => s.fire(),
+            Key::Enter | Key::Esc => {
+                s.quit();
+                s.message = "You turn back for the wagons.".into();
+            }
+            Key::Tick => s.tick(),
+            _ => {}
+        }
+    }
+
+    /// Back at the wagon with what the party could carry.
+    fn end_stalk(&mut self) {
+        let Some(s) = self.stalk.take() else { return };
+        let from = self.day;
+        let (down, carried) = s.meat();
+        self.hunted += 1;
+        self.supplies.take(Item::Shot, s.fired);
+        self.supplies.add(Item::Food, carried);
+        let rounds = match s.fired {
+            0 => "You never fired.".to_string(),
+            1 => "One round fired.".to_string(),
+            n => format!("{n} rounds fired."),
+        };
+        let text = match s.bag() {
+            Some(bag) if carried < down => format!("You brought down {bag}: {down} lb of meat, and between you carried {carried} lb back to the wagon. {rounds}"),
+            Some(bag) => format!("You brought down {bag}: {down} lb of meat. {rounds}"),
+            None => format!("You came back with nothing. {rounds}"),
+        };
+        info!("stalked: {down} lb down, {carried} carried, {} rounds", s.fired);
+        self.go(Screen::Trail);
+        let d = self.live_day(true);
+        self.diary.push(format!("{}: Stalking. {text}", date::short(from)));
+        for name in &d.died {
+            let o = self.obituary(name);
+            self.diary.push(o);
+        }
+        self.after_days();
+    }
+
+    /// A day's hunting by the party, if there is shot for it: the quick way.
+    pub(crate) fn go_hunting(&mut self) {
         let shot = self.supplies.get(Item::Shot);
         if shot < hunt::SHOT_NEEDED {
             self.note = "You have too little powder and shot to hunt.".into();
             return;
         }
         let from = self.day;
-        let hands = self.party.iter().filter(|p| p.alive() && p.illness.is_none()).count() as u32;
+        let hands = self.hands();
         let h = hunt::hunt(&mut self.rng, self.journey.region, self.day, self.hunted, shot, hands);
         self.hunted += 1;
         self.supplies.take(Item::Shot, h.shot);
@@ -829,6 +934,16 @@ impl Game {
         ROUTE[self.to].name == "Fort Vancouver"
     }
 
+    /// How far along the road to the next landmark the wagon is, 0 to 1.
+    pub fn along(&self) -> f64 {
+        let total = match ROUTE[self.at].next {
+            Next::On(n, m) if n == self.to => m,
+            Next::Fork(roads) => roads.iter().find(|r| r.1 == self.to).map_or(self.left, |r| r.2),
+            _ => self.left,
+        };
+        if total <= 0.0 { 1.0 } else { (1.0 - self.left / total).clamp(0.0, 1.0) }
+    }
+
     pub fn next_landmark(&self) -> &'static str {
         ROUTE[self.to].name
     }
@@ -943,6 +1058,38 @@ mod tests {
         g.key(Key::Esc);
         g.key(Key::Char('y'));
         assert!(g.done());
+    }
+
+    #[test]
+    fn stalking_takes_a_day_and_brings_back_what_it_shot() {
+        let mut g = play(4, ">>>>>>>");
+        g.supplies.set(Item::Oxen, 6);
+        g.supplies.set(Item::Food, 800);
+        g.supplies.set(Item::Shot, 40);
+        g.cursor = Game::STORE_ROWS - 1;
+        g.key(Key::Enter);
+        let day = g.day;
+        for k in script_keys("31^^^ ^^ ") {
+            g.key(k);
+        }
+        assert_eq!(g.screen, Screen::Hunt);
+        for _ in 0..crate::stalk::DAY {
+            g.key(Key::Tick);
+        }
+        g.key(Key::Enter);
+        assert_eq!(g.screen, Screen::Trail);
+        assert_eq!(g.day, day + 1);
+        assert!(g.supplies.get(Item::Shot) <= 40);
+        assert!(g.diary.last().is_some_and(|d| d.contains("Stalking.")));
+        // the quick way still works, and Esc goes back
+        for k in script_keys("3!") {
+            g.key(k);
+        }
+        assert_eq!(g.screen, Screen::Trail);
+        for k in script_keys("32") {
+            g.key(k);
+        }
+        assert_eq!(g.day, day + 2);
     }
 
     #[test]

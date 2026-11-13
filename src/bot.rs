@@ -88,7 +88,7 @@ fn play_steps(seed: u64, strategy: Strategy, month: Option<u32>, steps: usize) -
                 if !sensible {
                     // hunt only once the flour has run out
                     if g.supplies.get(Item::Food) < 15 && g.hunted < 3 && g.supplies.get(Item::Shot) >= crate::hunt::SHOT_NEEDED {
-                        g.trail_choice(2);
+                        g.go_hunting();
                     } else {
                         g.trail_choice(0);
                     }
@@ -105,7 +105,7 @@ fn play_steps(seed: u64, strategy: Strategy, month: Option<u32>, steps: usize) -
                 g.journey.pace = if late { Pace::Hard } else { Pace::Steady };
                 let weak = g.party.iter().filter(|p| p.alive()).any(|p| p.health < 45);
                 if food_days < 20 && g.hunted < 3 && g.supplies.get(Item::Shot) >= crate::hunt::SHOT_NEEDED {
-                    g.trail_choice(2);
+                    g.go_hunting();
                 } else if weak && food_days >= 4 {
                     g.trail_choice(1);
                 } else {

@@ -12,8 +12,8 @@ on the roster by David, 2026-10-27, as the answer to "can we offer The
 Oregon Trail in Asciiverse?" (see Rights). Repo theasciiverse/westering
 (public); in the catalog since 2026-10-28 (`hub/catalog/westering.toml`,
 kept in step with `asciiverse/`), with its cast and a link from 1971 on the
-website's history page. Released from v0.5.0 on. Version 0.6.0
-(2026-11-14, played and tuned). What comes next, release by release, is in `ROADMAP.md`.
+website's history page. Released from v0.5.0 on. Version 0.7.0
+(2026-11-14, art and hunting). What comes next, release by release, is in `ROADMAP.md`.
 
 ## Code
 
@@ -31,6 +31,11 @@ env_logger.
   weather, health, oxen), `route.rs` (the 25 landmarks), `events.rs`,
   `river.rs`, `hunt.rs`, `bot.rs`, `date.rs`, `rng.rs` (SplitMix64, so a
   seed replays a journey)
+- `pix.rs`: half-block pictures drawn in code (a canvas of pixels two to a
+  cell): the landmarks, the country on the trail page, the title;
+  `westering --pictures` prints every landmark's picture in colour
+- `stalk.rs`: the hunting scene on foot, in ticks (five a second in the
+  terminal loop, `~` in a script); the quick text hunt stays in `hunt.rs`
 - `save.rs`: the journey kept in `$XDG_STATE_HOME/westering/journey.txt`
   (on Windows `%LOCALAPPDATA%`), written at every trail and landmark page,
   removed when the journey ends; none under `cfg(test)`
@@ -82,5 +87,4 @@ Trail once it is playable.
 ## Open
 
 The name, if a better one comes along (free on Steam, itch.io and
-crates.io, 2026-10-28); half-block art and an action hunting scene (0.7.0);
-David's own play-through.
+crates.io, 2026-10-28); David's own play-through.

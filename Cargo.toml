@@ -1,6 +1,6 @@
 [package]
 name = "westering"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 description = "Asciiverse wagon journey west along the 1848 Oregon Trail, Rust + Ratatui"
 license = "MIT"

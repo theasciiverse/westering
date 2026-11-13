@@ -1,7 +1,8 @@
 # Roadmap
 
-Westering is at 0.6.0 (2026-11-14): played through and tuned by Claude
-overnight; David's own play-through is still to come. 1.0.0 is when
+Westering is at 0.7.0 (2026-11-14): played through and tuned by Claude
+overnight, with half-block pictures and a hunting scene; David's own
+play-through is still to come. 1.0.0 is when
 everything below is in.
 
 ## 0.5.0: built
@@ -25,8 +26,11 @@ everything below is in.
 
 ## 0.7.0: art and hunting
 
-- [ ] Half-block art beyond the landmark scenes
-- [ ] An action hunting scene beside the text hunt
+- [x] Half-block art: every landmark and river drawn in its season's
+  weather, the country the wagon is crossing on the trail page, and the
+  title (the old plain-character scenes retired)
+- [x] An action hunting scene beside the text hunt: stalking on foot, with
+  wind, cover, a herd's alarm and the light running out
 
 ## 1.0.0
 

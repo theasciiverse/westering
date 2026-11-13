@@ -7,14 +7,16 @@ $700 at the store: oxen, provisions, clothing, powder and shot, and spare
 parts for a wagon that will break.
 
 Then the road. Set the pace and the rations, rest when someone is failing,
-hunt buffalo on the plains and elk in the mountains, trade with the trains
-you meet. Every grave you leave behind gets the words you give it.
+stalk buffalo on the plains and elk in the mountains, creeping up from
+downwind with the light going, and trade with the trains you meet. Every grave you leave behind gets the words you give it.
 
 ## The road
 
 - Twenty-five landmarks of the 1848 road, from Chimney Rock and
   Independence Rock to South Pass, Fort Hall and the Blue Mountains, each
-  with a note on what stood there that year
+  drawn in half blocks with a note on what stood there that year
+- Hunting on foot: the wind carries your scent, cover hides you,
+  antelope see far and buffalo often stand while their neighbours fall
 - Seven rivers to ford, float or ferry, high with snowmelt in May and June
 - Two forks: the dry Sublette Cutoff or Fort Bridger; the Barlow Road over
   Mount Hood or a raft down the Columbia
@@ -29,3 +31,5 @@ you meet. Every grave you leave behind gets the words you give it.
 - Esc on the trail stops for now; the journey waits for you, and `c` on
   the title page takes it up again
 - In the store, Right or `+` buys and Left or `-` puts back
+- Stalking: the arrow keys creep (`q` `e` `z` `c` for the diagonals),
+  Space fires at the nearest animal, Enter heads back to the wagon

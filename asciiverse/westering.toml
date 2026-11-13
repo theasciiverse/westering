@@ -21,23 +21,24 @@ url = "https://asciiverse.sh"
 game = "westering"
 args = []
 
-# the text is set in a 72-column page; 24 rows fit every screen
+# the text is set in a 72-column page; 24 rows fit every screen (the
+# pictures show where there is room)
 [min_terminal]
 cols = 72
 rows = 24
 
 [requires]
-utf8 = false
+utf8 = true
 color = "truecolor"
 mouse = false
 gamepad = false
 
-# 100x30, recorded with hub/tools/castrec.py and --seed 7: outfitting in
-# Independence, the first week, the Kansas River by ferry, the Big Blue
-# floated; the still is the Kansas River scene
+# 100x30, recorded with hub/tools/castrec.py and --seed 7: the title,
+# outfitting in Independence, the first week, a deer stalked on the prairie,
+# and the Kansas River; the still is the Kansas River's picture
 [media]
 cast = "asciiverse/westering.cast"
-thumbnail_at = 23.0
+thumbnail_at = 40.0
 
 [release]
 source = "github"
